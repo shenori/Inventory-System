@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import api from '../../../lib/axios';
+import Link from 'next/link';
 
 export default function ItemsPage() {
     const { user, loading: authLoading, logout } = useAuth();
@@ -17,8 +18,11 @@ export default function ItemsPage() {
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
 
+    // ✅ Fix: base URL for images (strips /api suffix)
+    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000').replace(/\/api$/, '');
+
     useEffect(() => {
-        if (authLoading) return; // Wait until auth is checked
+        if (authLoading) return;
         if (!user) { router.push('/login'); return; }
         fetchItems();
         fetchPlaces();
@@ -88,20 +92,12 @@ export default function ItemsPage() {
         return map[s] || map['missing'];
     };
 
-    const inp = {
-        width: '100%', padding: '11px 14px', fontSize: '13px',
-        border: '2px solid #e8eaf6', borderRadius: '10px', outline: 'none',
-        boxSizing: 'border-box', background: '#fafafe', color: '#333',
-        fontFamily: 'inherit', transition: 'all 0.2s',
-    };
-
-    // Show loading spinner while auth is being checked
     if (authLoading) {
         return (
-            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2ff' }}>
-                <div style={{ textAlign: 'center', color: '#667eea' }}>
+            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d0f1a' }}>
+                <div style={{ textAlign: 'center', color: '#6366f1' }}>
                     <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-                    <p style={{ fontWeight: '600' }}>Loading...</p>
+                    <p style={{ fontWeight: '600', color: '#94a3b8' }}>Loading...</p>
                 </div>
             </div>
         );
@@ -118,11 +114,9 @@ export default function ItemsPage() {
                     width: 240px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 100;
                     background: linear-gradient(180deg, #0d0f1a 0%, #111827 100%);
                     border-right: 1px solid rgba(255,255,255,0.06);
-                    padding: 24px 14px; display: flex; flex-direction: 'column';
+                    padding: 24px 14px; display: flex; flex-direction: column;
                 }
-                .sidebar-logo {
-                    display: flex; align-items: center; gap: 10px; margin-bottom: 32px; padding: 0 8px;
-                }
+                .sidebar-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; padding: 0 8px; }
                 .logo-icon {
                     width: 40px; height: 40px; border-radius: 12px;
                     background: linear-gradient(135deg, #6366f1, #8b5cf6);
@@ -157,15 +151,12 @@ export default function ItemsPage() {
                 }
                 .nav-link:hover { background: rgba(255,255,255,0.05); }
                 .nav-link.active { background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.2); }
-                .nav-icon {
-                    width: 32px; height: 32px; border-radius: 10px;
-                    display: flex; align-items: center; justify-content: center; font-size: 16px;
-                }
+                .nav-icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
                 .nav-label { font-size: 13px; font-weight: 500; color: #64748b; }
                 .nav-link.active .nav-label { color: #e2e8f0; font-weight: 600; }
                 .logout-btn {
-                    display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 16px;
-                    padding: 10px 12px; border-radius: 12px; width: 100%;
+                    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+                    border-radius: 12px; width: 100%; margin-top: auto;
                     background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15);
                     cursor: pointer; transition: all 0.2s;
                 }
@@ -214,10 +205,7 @@ export default function ItemsPage() {
                     font-family: monospace; border: 1px solid rgba(99,102,241,0.2);
                 }
                 .qty-wrap { display: flex; align-items: center; gap: 8px; }
-                .qty-btn {
-                    width: 28px; height: 28px; border-radius: 8px; border: none;
-                    font-weight: 800; cursor: pointer; font-size: 16px; transition: all 0.15s;
-                }
+                .qty-btn { width: 28px; height: 28px; border-radius: 8px; border: none; font-weight: 800; cursor: pointer; font-size: 16px; transition: all 0.15s; }
                 .qty-dec { background: rgba(239,68,68,0.15); color: #f87171; }
                 .qty-dec:hover { background: rgba(239,68,68,0.25); }
                 .qty-inc { background: rgba(34,197,94,0.15); color: #4ade80; }
@@ -225,10 +213,7 @@ export default function ItemsPage() {
                 .qty-val { font-weight: 800; color: #f1f5f9; font-size: 18px; min-width: 32px; text-align: center; }
                 .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
                 .place-text { color: #64748b; font-size: 13px; }
-                .action-btn {
-                    padding: 7px 13px; border-radius: 9px; border: none;
-                    font-weight: 700; cursor: pointer; font-size: 12px; font-family: inherit; transition: all 0.15s;
-                }
+                .action-btn { padding: 7px 13px; border-radius: 9px; border: none; font-weight: 700; cursor: pointer; font-size: 12px; font-family: inherit; transition: all 0.15s; }
                 .edit-btn { background: rgba(139,92,246,0.15); color: #c4b5fd; }
                 .edit-btn:hover { background: rgba(139,92,246,0.25); }
                 .del-btn { background: rgba(239,68,68,0.12); color: #f87171; }
@@ -236,53 +221,27 @@ export default function ItemsPage() {
                 .img-thumb { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; border: 1px solid rgba(255,255,255,0.1); }
                 .img-placeholder { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; font-size: 20px; }
                 .empty-state { text-align: center; padding: 64px; color: #334155; }
-                .modal-overlay {
-                    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-                    display: flex; align-items: center; justify-content: center; z-index: 1000;
-                    backdrop-filter: blur(6px);
-                }
-                .modal {
-                    background: #111827; border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 24px; padding: 32px; width: 100%; max-width: 460px;
-                    max-height: 90vh; overflow-y: auto;
-                    box-shadow: 0 25px 60px rgba(0,0,0,0.6);
-                }
+                .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(6px); }
+                .modal { background: #111827; border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 32px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.6); }
                 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
                 .modal-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: #f1f5f9; margin: 0; }
                 .close-btn { background: rgba(255,255,255,0.07); border: none; border-radius: 10px; width: 32px; height: 32px; cursor: pointer; color: #94a3b8; font-size: 16px; transition: all 0.2s; }
                 .close-btn:hover { background: rgba(255,255,255,0.12); color: #f1f5f9; }
                 .field-label-m { display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-                .field-input-m {
-                    width: 100%; padding: 11px 14px; font-size: 13px; font-family: inherit;
-                    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 10px; outline: none; color: #e2e8f0; transition: all 0.2s;
-                    box-sizing: border-box;
-                }
+                .field-input-m { width: 100%; padding: 11px 14px; font-size: 13px; font-family: inherit; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; outline: none; color: #e2e8f0; transition: all 0.2s; box-sizing: border-box; }
                 .field-input-m:focus { border-color: #6366f1; background: rgba(99,102,241,0.08); }
                 .field-input-m::placeholder { color: #334155; }
                 .field-input-m option { background: #1e2937; }
-                .error-box-m {
-                    background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);
-                    color: #f87171; font-size: 13px; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px;
-                }
-                .submit-btn-m {
-                    flex: 1; padding: 13px; background: linear-gradient(135deg, #6366f1, #8b5cf6);
-                    color: white; border: none; border-radius: 12px; font-size: 14px; font-weight: 700;
-                    cursor: pointer; font-family: inherit; box-shadow: 0 6px 20px rgba(99,102,241,0.4);
-                    transition: all 0.2s;
-                }
+                .error-box-m { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #f87171; font-size: 13px; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; }
+                .submit-btn-m { flex: 1; padding: 13px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; box-shadow: 0 6px 20px rgba(99,102,241,0.4); transition: all 0.2s; }
                 .submit-btn-m:hover { transform: translateY(-1px); }
-                .cancel-btn-m {
-                    flex: 1; padding: 13px; background: rgba(255,255,255,0.06); color: #94a3b8;
-                    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 14px;
-                    font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s;
-                }
+                .cancel-btn-m { flex: 1; padding: 13px; background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
                 .cancel-btn-m:hover { background: rgba(255,255,255,0.1); }
             `}</style>
 
             <div className="page-root">
                 {/* Sidebar */}
-                <aside className="sidebar" style={{ display: 'flex', flexDirection: 'column' }}>
+                <aside className="sidebar">
                     <div className="sidebar-logo">
                         <div className="logo-icon">📦</div>
                         <div>
@@ -307,19 +266,19 @@ export default function ItemsPage() {
                         { label: 'Storage', href: '/dashboard/storage', icon: '🗄️' },
                         { label: 'Audit Logs', href: '/dashboard/audit-logs', icon: '📋' },
                     ].map(item => (
-                        <a key={item.href} href={item.href} className={`nav-link ${item.active ? 'active' : ''}`}>
+                        <Link key={item.href} href={item.href} className={`nav-link ${item.active ? 'active' : ''}`}>
                             <div className="nav-icon" style={{ background: item.active ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.05)' }}>{item.icon}</div>
                             <span className="nav-label">{item.label}</span>
-                        </a>
+                        </Link>
                     ))}
 
                     {user?.role === 'admin' && (
                         <>
                             <div className="nav-section" style={{ marginTop: '16px' }}>Admin</div>
-                            <a href="/dashboard/users" className="nav-link">
+                            <Link href="/dashboard/users" className="nav-link">
                                 <div className="nav-icon" style={{ background: 'rgba(255,255,255,0.05)' }}>👥</div>
                                 <span className="nav-label">Users</span>
-                            </a>
+                            </Link>
                         </>
                     )}
 
@@ -378,8 +337,9 @@ export default function ItemsPage() {
                                         return (
                                             <tr key={item.id} className="tr">
                                                 <td className="td">
+                                                    {/* ✅ Fixed: uses env var instead of hardcoded localhost */}
                                                     {item.image
-                                                        ? <img src={`http://127.0.0.1:8000/storage/${item.image}`} alt={item.name} className="img-thumb" />
+                                                        ? <img src={`${baseUrl}/storage/${item.image}`} alt={item.name} className="img-thumb" />
                                                         : <div className="img-placeholder">📦</div>
                                                     }
                                                 </td>
@@ -443,7 +403,12 @@ export default function ItemsPage() {
                                     style={{ padding: '8px 14px' }}
                                     onChange={e => { if (e.target.files && e.target.files[0]) setImageFile(e.target.files[0]); }} />
                                 {imageFile && <p style={{ color: '#4ade80', fontSize: '12px', margin: '4px 0 0' }}>✓ {imageFile.name}</p>}
-                                {editItem?.image && !imageFile && <p style={{ color: '#64748b', fontSize: '12px', margin: '4px 0 0' }}>Current image kept if none selected</p>}
+                                {editItem?.image && !imageFile && (
+                                    <div style={{ marginTop: '8px' }}>
+                                        <img src={`${baseUrl}/storage/${editItem.image}`} alt="current" style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                        <p style={{ color: '#64748b', fontSize: '12px', margin: '4px 0 0' }}>Current image kept if none selected</p>
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="field-label-m">Description</label>
