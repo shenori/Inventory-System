@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp
+FROM php:8.2-apache
 
 RUN apt-get update && apt-get install -y \
     libpq-dev \
@@ -6,11 +6,12 @@ RUN apt-get update && apt-get install -y \
     unzip \
     curl \
     git \
-    && docker-php-ext-install pdo pdo_pgsql zip bcmath opcache
+    && docker-php-ext-install pdo pdo_pgsql zip bcmath \
+    && a2enmod rewrite
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-WORKDIR /app
+WORKDIR /var/www/html
 
 COPY . .
 
@@ -18,9 +19,12 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 RUN chmod -R 777 storage bootstrap/cache
 
-EXPOSE 8000
+COPY .htaccess /var/www/html/.htaccess
 
-ENV SERVER_NAME=:8000
-ENV APP_ENV=production
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
+
+EXPOSE 80
+
+CMD php artisan config:clear && php artisan key:generate --force && php artisan migrate --force && apache2-foreground
