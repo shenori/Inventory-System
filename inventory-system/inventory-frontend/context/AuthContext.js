@@ -7,22 +7,26 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true); // START as true
+    const [loading, setLoading] = useState(true); // CRITICAL: start as TRUE
     const router = useRouter();
 
     useEffect(() => {
-        // On app load, check localStorage for saved token/user
-        try {
-            const token = localStorage.getItem('token');
-            const savedUser = localStorage.getItem('user');
-            if (token && savedUser) {
-                setUser(JSON.parse(savedUser));
+        // Check localStorage BEFORE any redirect happens
+        const checkAuth = () => {
+            try {
+                const token = localStorage.getItem('token');
+                const savedUser = localStorage.getItem('user');
+                if (token && savedUser) {
+                    setUser(JSON.parse(savedUser));
+                }
+            } catch (e) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+            } finally {
+                setLoading(false); // Only set false AFTER check is done
             }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false); // Only set false AFTER checking localStorage
-        }
+        };
+        checkAuth();
     }, []);
 
     const login = async (email, password) => {
@@ -34,9 +38,7 @@ export function AuthProvider({ children }) {
     };
 
     const logout = async () => {
-        try {
-            await api.post('/logout');
-        } catch {}
+        try { await api.post('/logout'); } catch {}
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setUser(null);
