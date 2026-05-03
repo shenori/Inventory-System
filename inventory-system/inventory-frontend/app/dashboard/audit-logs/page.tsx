@@ -6,113 +6,174 @@ import api from '../../../lib/axios';
 import Link from 'next/link';
 
 export default function AuditLogsPage() {
-    const { user, logout } = useAuth();
+    const { user, logout, loading: authLoading } = useAuth();
     const router = useRouter();
     const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
 
     useEffect(() => {
+        if (authLoading) return;
         if (!user) { router.push('/login'); return; }
         fetchLogs();
-    }, [user]);
+    }, [user, authLoading]);
 
     const fetchLogs = async () => {
         try {
             const res = await api.get('/audit-logs');
             setLogs(res.data.data || res.data);
         } catch (err) { console.error(err); }
-        finally { setLoading(false); }
-    };
-
-    const actionStyle = (action) => {
-        if (!action) return { cls: 'b-gray', icon: '❓' };
-        if (action.includes('created'))  return { cls: 'b-green',  icon: '➕' };
-        if (action.includes('updated') || action.includes('quantity')) return { cls: 'b-blue', icon: '✏️' };
-        if (action.includes('deleted'))  return { cls: 'b-red',    icon: '🗑️' };
-        if (action.includes('borrowed')) return { cls: 'b-yellow', icon: '📤' };
-        if (action.includes('returned')) return { cls: 'b-purple', icon: '✅' };
-        return { cls: 'b-gray', icon: '❓' };
     };
 
     const navItems = [
-        { label: 'Dashboard',  href: '/dashboard',            icon: '🏠' },
-        { label: 'Items',      href: '/dashboard/items',      icon: '📦' },
+        { label: 'Dashboard', href: '/dashboard', icon: '🏠' },
+        { label: 'Items', href: '/dashboard/items', icon: '📦' },
         { label: 'Borrowings', href: '/dashboard/borrowings', icon: '🤝' },
-        { label: 'Storage',    href: '/dashboard/storage',    icon: '🗄️' },
-        { label: 'Audit Logs', href: '/dashboard/audit-logs', icon: '📋', active: true },
+        { label: 'Storage', href: '/dashboard/storage', icon: '🗄️' },
+        { label: 'Audit Logs', href: '/dashboard/audit-logs', icon: '📋' },
     ];
 
-    const filtered = logs.filter(l =>
-        !search ||
-        l.action?.toLowerCase().includes(search.toLowerCase()) ||
-        l.user?.name?.toLowerCase().includes(search.toLowerCase())
-    );
+    const actionBadge = (action) => {
+        if (action.includes('created')) return { bg: 'rgba(16,185,129,0.12)', color: '#34d399' };
+        if (action.includes('updated') || action.includes('quantity')) return { bg: 'rgba(99,102,241,0.12)', color: '#818cf8' };
+        if (action.includes('deleted')) return { bg: 'rgba(239,68,68,0.12)', color: '#f87171' };
+        if (action.includes('borrowed')) return { bg: 'rgba(245,158,11,0.12)', color: '#fbbf24' };
+        if (action.includes('returned')) return { bg: 'rgba(139,92,246,0.12)', color: '#a78bfa' };
+        if (action.includes('login')) return { bg: 'rgba(100,116,139,0.12)', color: '#94a3b8' };
+        return { bg: 'rgba(100,116,139,0.12)', color: '#94a3b8' };
+    };
+
+    if (authLoading) {
+        return <div style={{ minHeight: '100vh', background: '#0d0f1a' }} />;
+    }
+
+    if (!user) return null;
 
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap');
                 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
                 body { font-family: 'DM Sans', sans-serif; }
                 .page-root { display: flex; min-height: 100vh; background: #0d0f1a; }
 
-                .sidebar { width: 240px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 100; background: linear-gradient(180deg, #0d0f1a 0%, #111827 100%); border-right: 1px solid rgba(255,255,255,0.06); padding: 24px 14px; display: flex; flex-direction: column; }
-                .sidebar-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; padding: 0 8px; }
-                .logo-icon { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 16px rgba(99,102,241,0.4); }
-                .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 15px; color: #f1f5f9; }
-                .logo-sub { font-size: 11px; color: #475569; }
-                .user-chip { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 12px 14px; margin-bottom: 28px; display: flex; align-items: center; gap: 10px; }
-                .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 15px; }
+                /* ── Sidebar (identical to dashboard) ── */
+                .sidebar {
+                    width: 210px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 100;
+                    background: linear-gradient(180deg, #0d0f1a 0%, #111827 100%);
+                    border-right: 1px solid rgba(255,255,255,0.06);
+                    padding: 20px 12px; display: flex; flex-direction: column;
+                }
+                .sidebar-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding: 0 6px; }
+                .logo-icon {
+                    width: 38px; height: 38px; border-radius: 12px;
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 18px; box-shadow: 0 4px 16px rgba(99,102,241,0.4); flex-shrink: 0;
+                }
+                .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 14px; color: #f1f5f9; line-height: 1.2; }
+                .logo-sub { font-size: 10px; color: #475569; }
+                .user-chip {
+                    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+                    border-radius: 12px; padding: 10px 12px; margin-bottom: 24px;
+                    display: flex; align-items: center; gap: 10px;
+                }
+                .user-avatar {
+                    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+                    background: linear-gradient(135deg, #f093fb, #f5576c);
+                    display: flex; align-items: center; justify-content: center;
+                    color: white; font-weight: 800; font-size: 14px;
+                }
                 .user-name { font-size: 13px; font-weight: 600; color: #e2e8f0; }
-                .user-role { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-                .nav-section { font-size: 10px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 8px; }
-                .nav-link { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; margin-bottom: 3px; text-decoration: none; transition: all 0.2s; border: 1px solid transparent; }
+                .user-role-badge {
+                    font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
+                    background: rgba(99,102,241,0.2); color: #a5b4fc;
+                    border: 1px solid rgba(99,102,241,0.3); display: inline-block;
+                    text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px;
+                }
+                .nav-section-label {
+                    font-size: 9px; font-weight: 700; color: #334155;
+                    text-transform: uppercase; letter-spacing: 1px; margin: 0 0 6px 8px;
+                }
+                .nav-link {
+                    display: flex; align-items: center; gap: 9px;
+                    padding: 9px 10px; border-radius: 10px; margin-bottom: 2px;
+                    text-decoration: none; transition: all 0.15s; border: 1px solid transparent;
+                }
                 .nav-link:hover { background: rgba(255,255,255,0.05); }
                 .nav-link.active { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.2); }
-                .nav-icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+                .nav-icon-wrap {
+                    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+                    display: flex; align-items: center; justify-content: center; font-size: 15px;
+                }
                 .nav-label { font-size: 13px; font-weight: 500; color: #64748b; }
                 .nav-link.active .nav-label { color: #e2e8f0; font-weight: 600; }
-                .logout-btn { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; width: 100%; margin-top: auto; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15); cursor: pointer; transition: all 0.2s; }
+                .nav-link:hover .nav-label { color: #94a3b8; }
+                .nav-spacer { flex: 1; }
+                .logout-btn {
+                    display: flex; align-items: center; gap: 9px; padding: 9px 10px;
+                    border-radius: 10px; width: 100%;
+                    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15);
+                    cursor: pointer; transition: all 0.2s;
+                }
                 .logout-btn:hover { background: rgba(239,68,68,0.15); }
+                .logout-icon { width: 30px; height: 30px; border-radius: 8px; background: rgba(239,68,68,0.12); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+                .logout-label { color: #fca5a5; font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; }
 
-                .main-content { margin-left: 240px; flex: 1; padding: 36px 40px; }
-                .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+                /* ── Main ── */
+                .main-content { margin-left: 210px; flex: 1; padding: 36px 40px; }
+                .page-header { margin-bottom: 28px; }
                 .page-title { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: #f1f5f9; margin: 0 0 4px; }
                 .page-sub { color: #475569; font-size: 14px; margin: 0; }
-                .refresh-btn { background: rgba(255,255,255,0.05); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px 18px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
-                .refresh-btn:hover { background: rgba(255,255,255,0.09); color: #e2e8f0; }
 
-                .stats-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-                .stat-chip { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
+                /* ── Table ── */
+                .table-wrap {
+                    background: rgba(255,255,255,0.02);
+                    border: 1px solid rgba(255,255,255,0.06);
+                    border-radius: 16px; overflow: hidden;
+                }
+                table { width: 100%; border-collapse: collapse; font-size: 13px; }
+                thead { background: rgba(255,255,255,0.02); }
+                th {
+                    text-align: left; padding: 12px 16px;
+                    font-size: 10px; font-weight: 700;
+                    text-transform: uppercase; letter-spacing: 0.9px;
+                    color: #334155; border-bottom: 1px solid rgba(255,255,255,0.05);
+                }
+                td {
+                    padding: 12px 16px;
+                    border-bottom: 1px solid rgba(255,255,255,0.03);
+                    color: #94a3b8; vertical-align: middle;
+                }
+                tr:last-child td { border-bottom: none; }
+                tr:hover td { background: rgba(255,255,255,0.018); }
 
-                .search-wrap { position: relative; margin-bottom: 20px; max-width: 380px; }
-                .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; }
-                .search-input { width: 100%; padding: 11px 16px 11px 42px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; font-size: 13px; color: #e2e8f0; outline: none; font-family: inherit; transition: all 0.2s; }
-                .search-input:focus { border-color: #6366f1; background: rgba(99,102,241,0.06); }
-                .search-input::placeholder { color: #334155; }
-
-                .table-wrap { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; overflow: hidden; }
-                .table-head { background: rgba(99,102,241,0.08); border-bottom: 1px solid rgba(255,255,255,0.07); }
-                .th { padding: 14px 20px; text-align: left; font-size: 11px; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: 0.8px; }
-                .tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.15s; }
-                .tr:hover { background: rgba(255,255,255,0.03); }
-                .td { padding: 13px 20px; font-size: 13px; color: #94a3b8; vertical-align: middle; }
-                .td-primary { font-weight: 700; color: #e2e8f0; }
-
-                .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-                .b-green  { background: rgba(74,222,128,0.12);  color: #4ade80; }
-                .b-blue   { background: rgba(96,165,250,0.12);  color: #60a5fa; }
-                .b-red    { background: rgba(248,113,113,0.12); color: #f87171; }
-                .b-yellow { background: rgba(251,191,36,0.12);  color: #fbbf24; }
-                .b-purple { background: rgba(196,181,253,0.12); color: #c4b5fd; }
-                .b-gray   { background: rgba(148,163,184,0.12); color: #94a3b8; }
-
+                .badge {
+                    display: inline-flex; align-items: center;
+                    padding: 3px 10px; border-radius: 100px;
+                    font-size: 11px; font-weight: 600; white-space: nowrap;
+                }
                 .user-cell { display: flex; align-items: center; gap: 8px; }
-                .user-dot { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 12px; flex-shrink: 0; }
-                .mono { font-family: monospace; font-size: 11px; color: #475569; white-space: pre-wrap; word-break: break-all; max-width: 160px; line-height: 1.5; }
-                .empty-state { text-align: center; padding: 64px; color: #334155; }
-                .loading-state { display: flex; align-items: center; justify-content: center; padding: 80px; color: #475569; font-size: 14px; gap: 10px; }
+                .mini-avatar {
+                    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+                    background: linear-gradient(135deg, #f093fb, #f5576c);
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 10px; font-weight: 800; color: white;
+                }
+                .model-cell { color: #475569; font-size: 12px; }
+                .model-id { opacity: 0.45; }
+                .mono {
+                    font-family: 'JetBrains Mono', monospace;
+                    font-size: 10.5px; color: #475569;
+                    white-space: pre-wrap; max-width: 130px;
+                    line-height: 1.5; display: block;
+                }
+                .ts-cell { white-space: nowrap; font-size: 11.5px; color: #475569; }
+
+                .empty-state { text-align: center; padding: 64px 20px; }
+                .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.35; }
+                .empty-text { font-size: 14px; color: #334155; }
+
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+                .fade-in { animation: fadeIn 0.3s ease forwards; }
             `}</style>
 
             <div className="page-root">
@@ -124,133 +185,111 @@ export default function AuditLogsPage() {
                             <div className="logo-sub">Management System</div>
                         </div>
                     </div>
+
                     <div className="user-chip">
                         <div className="user-avatar">{user?.name?.charAt(0)?.toUpperCase()}</div>
                         <div>
                             <div className="user-name">{user?.name}</div>
-                            <span className="user-role">{user?.role}</span>
+                            <span className="user-role-badge">{user?.role}</span>
                         </div>
                     </div>
-                    <div className="nav-section">Main Menu</div>
+
+                    <div className="nav-section-label">Main Menu</div>
                     {navItems.map(item => (
-                        <Link key={item.href} href={item.href} className={`nav-link ${item.active ? 'active' : ''}`}>
-                            <div className="nav-icon" style={{ background: item.active ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.05)' }}>{item.icon}</div>
+                        <Link key={item.href} href={item.href} className={`nav-link${item.href === '/dashboard/audit-logs' ? ' active' : ''}`}>
+                            <div className="nav-icon-wrap" style={{ background: item.href === '/dashboard/audit-logs' ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.05)' }}>
+                                {item.icon}
+                            </div>
                             <span className="nav-label">{item.label}</span>
                         </Link>
                     ))}
+
                     {user?.role === 'admin' && (
                         <>
-                            <div className="nav-section" style={{ marginTop: '16px' }}>Admin</div>
+                            <div className="nav-section-label" style={{ marginTop: '14px' }}>Admin</div>
                             <Link href="/dashboard/users" className="nav-link">
-                                <div className="nav-icon" style={{ background: 'rgba(255,255,255,0.05)' }}>👥</div>
+                                <div className="nav-icon-wrap" style={{ background: 'rgba(255,255,255,0.05)' }}>👥</div>
                                 <span className="nav-label">Users</span>
                             </Link>
                         </>
                     )}
-                    <div style={{ flex: 1 }} />
+
+                    <div className="nav-spacer" />
+
                     <button className="logout-btn" onClick={logout}>
-                        <div className="nav-icon" style={{ background: 'rgba(239,68,68,0.12)' }}>🚪</div>
-                        <span style={{ color: '#fca5a5', fontSize: '13px', fontWeight: '500' }}>Logout</span>
+                        <div className="logout-icon">🚪</div>
+                        <span className="logout-label">Logout</span>
                     </button>
                 </aside>
 
-                <main className="main-content">
+                <main className="main-content fade-in">
                     <div className="page-header">
-                        <div>
-                            <h1 className="page-title">📋 Audit Logs</h1>
-                            <p className="page-sub">Complete history of all system activity</p>
-                        </div>
-                        <button className="refresh-btn" onClick={fetchLogs}>🔄 Refresh</button>
+                        <h1 className="page-title">Audit Logs</h1>
+                        <p className="page-sub">Complete history of all system activity</p>
                     </div>
 
-                    <div className="stats-row">
-                        {[
-                            { label: 'Total Logs', count: logs.length,                                             color: '#a5b4fc', bg: 'rgba(99,102,241,0.1)' },
-                            { label: 'Created',    count: logs.filter(l => l.action?.includes('created')).length,  color: '#4ade80', bg: 'rgba(74,222,128,0.1)' },
-                            { label: 'Updated',    count: logs.filter(l => l.action?.includes('updated')).length,  color: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
-                            { label: 'Deleted',    count: logs.filter(l => l.action?.includes('deleted')).length,  color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
-                        ].map((s, i) => (
-                            <div key={i} className="stat-chip">
-                                <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: s.bg, color: s.color }}>{s.label}</span>
-                                <span style={{ fontWeight: '800', color: '#f1f5f9', fontSize: '20px' }}>{s.count}</span>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="search-wrap">
-                        <span className="search-icon">🔍</span>
-                        <input
-                            type="text"
-                            placeholder="Search by action or user..."
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            className="search-input"
-                        />
-                    </div>
-
-                    {loading ? (
-                        <div className="loading-state">⏳ Loading audit logs...</div>
-                    ) : (
-                        <div className="table-wrap">
-                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                <thead className="table-head">
+                    <div className="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Action</th>
+                                    <th>User</th>
+                                    <th>Model</th>
+                                    <th>Old Values</th>
+                                    <th>New Values</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {logs.length === 0 ? (
                                     <tr>
-                                        {['Action', 'User', 'Model', 'Old Values', 'New Values', 'Timestamp'].map(h => (
-                                            <th key={h} className="th">{h}</th>
-                                        ))}
+                                        <td colSpan={6}>
+                                            <div className="empty-state">
+                                                <div className="empty-icon">📋</div>
+                                                <div className="empty-text">No audit logs yet</div>
+                                            </div>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {filtered.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={6}>
-                                                <div className="empty-state">
-                                                    <div style={{ fontSize: '48px' }}>📭</div>
-                                                    <p style={{ marginTop: '12px' }}>No audit logs found</p>
+                                ) : logs.map((log) => {
+                                    const badge = actionBadge(log.action);
+                                    return (
+                                        <tr key={log.id}>
+                                            <td>
+                                                <span className="badge" style={{ background: badge.bg, color: badge.color }}>
+                                                    {log.action}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div className="user-cell">
+                                                    <div className="mini-avatar">
+                                                        {log.user?.name?.[0]?.toUpperCase() || 'S'}
+                                                    </div>
+                                                    {log.user?.name || 'System'}
                                                 </div>
                                             </td>
+                                            <td className="model-cell">
+                                                {log.auditable_type?.split('\\').pop()}
+                                                <span className="model-id"> #{log.auditable_id}</span>
+                                            </td>
+                                            <td>
+                                                {log.old_values
+                                                    ? <code className="mono">{JSON.stringify(log.old_values, null, 1)}</code>
+                                                    : <span style={{ color: '#1e293b' }}>—</span>}
+                                            </td>
+                                            <td>
+                                                {log.new_values
+                                                    ? <code className="mono">{JSON.stringify(log.new_values, null, 1)}</code>
+                                                    : <span style={{ color: '#1e293b' }}>—</span>}
+                                            </td>
+                                            <td className="ts-cell">
+                                                {new Date(log.created_at).toLocaleString()}
+                                            </td>
                                         </tr>
-                                    ) : filtered.map((log) => {
-                                        const a = actionStyle(log.action);
-                                        return (
-                                            <tr key={log.id} className="tr">
-                                                <td className="td">
-                                                    <span className={`badge ${a.cls}`}>
-                                                        {a.icon} {log.action}
-                                                    </span>
-                                                </td>
-                                                <td className="td">
-                                                    <div className="user-cell">
-                                                        <div className="user-dot">
-                                                            {(log.user?.name || 'S')[0].toUpperCase()}
-                                                        </div>
-                                                        <span className="td-primary">{log.user?.name || 'System'}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="td" style={{ color: '#64748b' }}>
-                                                    {log.auditable_type?.split('\\').pop()}
-                                                    <span style={{ opacity: 0.5 }}> #{log.auditable_id}</span>
-                                                </td>
-                                                <td className="td">
-                                                    {log.old_values
-                                                        ? <pre className="mono">{JSON.stringify(log.old_values, null, 1)}</pre>
-                                                        : <span style={{ color: '#334155' }}>—</span>}
-                                                </td>
-                                                <td className="td">
-                                                    {log.new_values
-                                                        ? <pre className="mono">{JSON.stringify(log.new_values, null, 1)}</pre>
-                                                        : <span style={{ color: '#334155' }}>—</span>}
-                                                </td>
-                                                <td className="td" style={{ whiteSpace: 'nowrap', fontSize: '12px' }}>
-                                                    {new Date(log.created_at).toLocaleString()}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </main>
             </div>
         </>
