@@ -27,6 +27,7 @@ class ComposerStaticInitc57754c93ae34ac3b9b716a0fd2f2149
         '801c31d8ed748cfa537fa45402288c95' => __DIR__ . '/..' . '/psy/psysh/src/functions.php',
         'e39a8b23c42d4e1452234d762b03835a' => __DIR__ . '/..' . '/ramsey/uuid/src/functions.php',
         '9d2b9fc6db0f153a0a149fefb182415e' => __DIR__ . '/..' . '/symfony/polyfill-php84/bootstrap.php',
+        '2c2415ec15363ede1bff13a287462ba1' => __DIR__ . '/..' . '/symfony/polyfill-php86/bootstrap.php',
         '476ca15b8d69b04665cd879be9cb4c68' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Collections/functions.php',
         '265b4faa2b3a9766332744949e83bf97' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Collections/helpers.php',
         'c7a3c339e7e14b60e06a2d7fcce9476b' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Events/functions.php',
@@ -51,6 +52,7 @@ class ComposerStaticInitc57754c93ae34ac3b9b716a0fd2f2149
         'S' =>
         array (
             'Symfony\\Polyfill\\Uuid\\' => 22,
+            'Symfony\\Polyfill\\Php86\\' => 23,
             'Symfony\\Polyfill\\Php85\\' => 23,
             'Symfony\\Polyfill\\Php84\\' => 23,
             'Symfony\\Polyfill\\Php80\\' => 23,
@@ -180,6 +182,10 @@ class ComposerStaticInitc57754c93ae34ac3b9b716a0fd2f2149
         'Symfony\\Polyfill\\Uuid\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-uuid',
+        ),
+        'Symfony\\Polyfill\\Php86\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/symfony/polyfill-php86',
         ),
         'Symfony\\Polyfill\\Php85\\' =>
         array (
@@ -1262,6 +1268,7 @@ class ComposerStaticInitc57754c93ae34ac3b9b716a0fd2f2149
         'Illuminate\\Contracts\\Queue\\EntityNotFoundException' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Contracts/Queue/EntityNotFoundException.php',
         'Illuminate\\Contracts\\Queue\\EntityResolver' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Contracts/Queue/EntityResolver.php',
         'Illuminate\\Contracts\\Queue\\Factory' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Contracts/Queue/Factory.php',
+        'Illuminate\\Contracts\\Queue\\Interruptible' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Contracts/Queue/Interruptible.php',
         'Illuminate\\Contracts\\Queue\\Job' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Contracts/Queue/Job.php',
         'Illuminate\\Contracts\\Queue\\Monitor' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Contracts/Queue/Monitor.php',
         'Illuminate\\Contracts\\Queue\\Queue' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Contracts/Queue/Queue.php',
@@ -1774,6 +1781,7 @@ class ComposerStaticInitc57754c93ae34ac3b9b716a0fd2f2149
         'Illuminate\\Foundation\\Validation\\ValidatesRequests' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Foundation/Validation/ValidatesRequests.php',
         'Illuminate\\Foundation\\Vite' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Foundation/Vite.php',
         'Illuminate\\Foundation\\ViteException' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Foundation/ViteException.php',
+        'Illuminate\\Foundation\\ViteFonts' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Foundation/ViteFonts.php',
         'Illuminate\\Foundation\\ViteManifestNotFoundException' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Foundation/ViteManifestNotFoundException.php',
         'Illuminate\\Hashing\\AbstractHasher' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Hashing/AbstractHasher.php',
         'Illuminate\\Hashing\\Argon2IdHasher' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Hashing/Argon2IdHasher.php',
@@ -2011,6 +2019,7 @@ class ComposerStaticInitc57754c93ae34ac3b9b716a0fd2f2149
         'Illuminate\\Queue\\Events\\QueueFailedOver' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Queue/Events/QueueFailedOver.php',
         'Illuminate\\Queue\\Events\\QueuePaused' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Queue/Events/QueuePaused.php',
         'Illuminate\\Queue\\Events\\QueueResumed' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Queue/Events/QueueResumed.php',
+        'Illuminate\\Queue\\Events\\WorkerInterrupted' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Queue/Events/WorkerInterrupted.php',
         'Illuminate\\Queue\\Events\\WorkerStarting' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Queue/Events/WorkerStarting.php',
         'Illuminate\\Queue\\Events\\WorkerStopping' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Queue/Events/WorkerStopping.php',
         'Illuminate\\Queue\\Failed\\CountableFailedJobProvider' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Queue/Failed/CountableFailedJobProvider.php',
@@ -3969,6 +3978,7 @@ class ComposerStaticInitc57754c93ae34ac3b9b716a0fd2f2149
         'Ramsey\\Uuid\\Validator\\ValidatorInterface' => __DIR__ . '/..' . '/ramsey/uuid/src/Validator/ValidatorInterface.php',
         'ReflectionConstant' => __DIR__ . '/..' . '/symfony/polyfill-php84/Resources/stubs/ReflectionConstant.php',
         'RoundingMode' => __DIR__ . '/..' . '/symfony/polyfill-php84/Resources/stubs/RoundingMode.php',
+        'SortDirection' => __DIR__ . '/..' . '/symfony/polyfill-php86/Resources/stubs/SortDirection.php',
         'Stringable' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Stringable.php',
         'Symfony\\Component\\Clock\\Clock' => __DIR__ . '/..' . '/symfony/clock/Clock.php',
         'Symfony\\Component\\Clock\\ClockAwareTrait' => __DIR__ . '/..' . '/symfony/clock/ClockAwareTrait.php',
@@ -4967,6 +4977,7 @@ class ComposerStaticInitc57754c93ae34ac3b9b716a0fd2f2149
         'Symfony\\Polyfill\\Php80\\PhpToken' => __DIR__ . '/..' . '/symfony/polyfill-php80/PhpToken.php',
         'Symfony\\Polyfill\\Php84\\Php84' => __DIR__ . '/..' . '/symfony/polyfill-php84/Php84.php',
         'Symfony\\Polyfill\\Php85\\Php85' => __DIR__ . '/..' . '/symfony/polyfill-php85/Php85.php',
+        'Symfony\\Polyfill\\Php86\\Php86' => __DIR__ . '/..' . '/symfony/polyfill-php86/Php86.php',
         'Symfony\\Polyfill\\Uuid\\Uuid' => __DIR__ . '/..' . '/symfony/polyfill-uuid/Uuid.php',
         'Termwind\\Actions\\StyleToMethod' => __DIR__ . '/..' . '/nunomaduro/termwind/src/Actions/StyleToMethod.php',
         'Termwind\\Components\\Anchor' => __DIR__ . '/..' . '/nunomaduro/termwind/src/Components/Anchor.php',
