@@ -11,13 +11,33 @@ export function AuthProvider({ children }) {
     const router = useRouter();
 
     useEffect(() => {
-        // Check localStorage BEFORE any redirect happens
-        const checkAuth = () => {
+        const checkAuth = async () => {
             try {
                 const token = localStorage.getItem('token');
                 const savedUser = localStorage.getItem('user');
-                if (token && savedUser) {
-                    setUser(JSON.parse(savedUser));
+
+                if (!token || !savedUser) {
+                    // No token at all — not logged in
+                    setLoading(false);
+                    return;
+                }
+
+                // Token exists in localStorage — verify it's still valid with backend
+                try {
+                    const res = await api.get('/user');
+                    // Backend confirmed token is valid — use fresh user data
+                    setUser(res.data);
+                    localStorage.setItem('user', JSON.stringify(res.data));
+                } catch (err) {
+                    if (err.response?.status === 401) {
+                        // Token expired or invalid — clear everything
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        setUser(null);
+                    } else {
+                        // Network error — fall back to cached user so app still works offline
+                        setUser(JSON.parse(savedUser));
+                    }
                 }
             } catch (e) {
                 localStorage.removeItem('token');
@@ -26,6 +46,7 @@ export function AuthProvider({ children }) {
                 setLoading(false); // Only set false AFTER check is done
             }
         };
+
         checkAuth();
     }, []);
 
