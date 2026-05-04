@@ -7,7 +7,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     git \
     && docker-php-ext-install pdo pdo_pgsql zip bcmath \
-    && a2enmod rewrite
+    && a2enmod rewrite \
+    && a2dismod mpm_event \
+    && a2enmod mpm_prefork
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
@@ -20,8 +22,6 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 RUN chmod -R 777 storage bootstrap/cache
-
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 
