@@ -8,7 +8,8 @@ import Link from 'next/link';
 export default function UsersPage() {
     const { user, logout, loading: authLoading } = useAuth();
     const router = useRouter();
-    const [users, setUsers] = useState([]);
+    const [users, setUsers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
@@ -23,9 +24,14 @@ export default function UsersPage() {
 
     const fetchUsers = async () => {
         try {
+            setLoading(true);
             const res = await api.get('/users');
             setUsers(res.data);
-        } catch (err) { console.error(err); }
+        } catch (err: any) {
+            console.error('fetchUsers error:', err?.response?.status, err?.response?.data);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSubmit = async () => {
@@ -35,14 +41,16 @@ export default function UsersPage() {
             setShowModal(false);
             setForm({ name: '', email: '', password: '', role: 'staff' });
             fetchUsers();
-        } catch (err) { setError(err.response?.data?.message || 'Something went wrong'); }
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Something went wrong');
+        }
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (id: number) => {
         if (id === user?.id) { alert('You cannot delete yourself'); return; }
         if (!confirm('Delete this user?')) return;
         try { await api.delete(`/users/${id}`); fetchUsers(); }
-        catch (err) { console.error(err); }
+        catch (err: any) { console.error(err); }
     };
 
     const navItems = [
@@ -53,7 +61,7 @@ export default function UsersPage() {
         { label: 'Audit Logs', href: '/dashboard/audit-logs', icon: '📋' },
     ];
 
-    const filtered = users.filter(u =>
+    const filtered = users.filter((u: any) =>
         !search ||
         u.name?.toLowerCase().includes(search.toLowerCase()) ||
         u.email?.toLowerCase().includes(search.toLowerCase())
@@ -67,7 +75,6 @@ export default function UsersPage() {
         'linear-gradient(135deg,#3b82f6,#2563eb)',
     ];
 
-    // Show blank dark screen while auth loads — no flash
     if (authLoading) return <div style={{ minHeight: '100vh', background: '#0d0f1a' }} />;
     if (!user) return null;
 
@@ -190,12 +197,11 @@ export default function UsersPage() {
                         </button>
                     </div>
 
-                    {/* Stats — updates as data loads */}
                     <div className="stats-row">
                         {[
-                            { label: 'Total',  count: users.length,                                 color: '#c4b5fd', bg: 'rgba(139,92,246,0.1)' },
-                            { label: 'Admins', count: users.filter(u => u.role === 'admin').length, color: '#fbbf24', bg: 'rgba(245,158,11,0.1)' },
-                            { label: 'Staff',  count: users.filter(u => u.role === 'staff').length, color: '#60a5fa', bg: 'rgba(59,130,246,0.1)' },
+                            { label: 'Total',  count: users.length,                                          color: '#c4b5fd', bg: 'rgba(139,92,246,0.1)' },
+                            { label: 'Admins', count: users.filter((u: any) => u.role === 'admin').length,   color: '#fbbf24', bg: 'rgba(245,158,11,0.1)' },
+                            { label: 'Staff',  count: users.filter((u: any) => u.role === 'staff').length,   color: '#60a5fa', bg: 'rgba(59,130,246,0.1)' },
                         ].map((s, i) => (
                             <div key={i} className="stat-chip">
                                 <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: s.bg, color: s.color }}>{s.label}</span>
@@ -209,16 +215,17 @@ export default function UsersPage() {
                         <input type="text" placeholder="Search by name or email..." value={search} onChange={e => setSearch(e.target.value)} className="search-input" />
                     </div>
 
-                    {/* Table renders immediately — fills in as data arrives */}
                     <div className="table-wrap">
                         <table>
                             <thead>
                                 <tr>{['User', 'Email', 'Role', 'Joined', 'Actions'].map(h => <th key={h}>{h}</th>)}</tr>
                             </thead>
                             <tbody>
-                                {filtered.length === 0 ? (
-                                    <tr><td colSpan={5}><div className="empty-state"><div style={{ fontSize: '40px', marginBottom: '10px', opacity: 0.35 }}>👤</div><p>{users.length === 0 ? 'Loading...' : 'No users found'}</p></div></td></tr>
-                                ) : filtered.map((u, idx) => (
+                                {loading ? (
+                                    <tr><td colSpan={5}><div className="empty-state"><div style={{ fontSize: '40px', marginBottom: '10px', opacity: 0.35 }}>⏳</div><p>Loading users...</p></div></td></tr>
+                                ) : filtered.length === 0 ? (
+                                    <tr><td colSpan={5}><div className="empty-state"><div style={{ fontSize: '40px', marginBottom: '10px', opacity: 0.35 }}>👤</div><p>{search ? 'No users match your search' : 'No users found'}</p></div></td></tr>
+                                ) : filtered.map((u: any, idx: number) => (
                                     <tr key={u.id}>
                                         <td>
                                             <div className="user-cell">
@@ -250,7 +257,8 @@ export default function UsersPage() {
                             <div><label className="field-label-m">Full Name *</label><input type="text" value={form.name} className="field-input-m" placeholder="e.g. John Silva" onChange={e => setForm({ ...form, name: e.target.value })} /></div>
                             <div><label className="field-label-m">Email Address *</label><input type="email" value={form.email} className="field-input-m" placeholder="john@company.com" onChange={e => setForm({ ...form, email: e.target.value })} /></div>
                             <div><label className="field-label-m">Password *</label><input type="password" value={form.password} className="field-input-m" placeholder="Min. 8 characters" onChange={e => setForm({ ...form, password: e.target.value })} /></div>
-                            <div><label className="field-label-m">Role *</label>
+                            <div>
+                                <label className="field-label-m">Role *</label>
                                 <select value={form.role} className="field-input-m" onChange={e => setForm({ ...form, role: e.target.value })}>
                                     <option value="staff">👤 Staff</option>
                                     <option value="admin">👑 Admin</option>
