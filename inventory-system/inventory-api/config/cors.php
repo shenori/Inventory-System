@@ -5,7 +5,7 @@ return [
     'allowed_methods' => ['*'],
     'allowed_origins' => [
         'http://localhost:3000',
-        'https://inventory-frontend-weld-three.vercel.app',
+        'http://localhost:3001',
         'https://*.vercel.app',
     ],
     'allowed_origins_patterns' => [],
