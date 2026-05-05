@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -34,8 +35,14 @@ class ItemController extends Controller
         }
 
         $item = Item::create([
-            ...$request->except('image'),
-            'image' => $imagePath,
+            'name'          => $request->name,
+            'code'          => $request->code,
+            'quantity'      => $request->quantity,
+            'serial_number' => $request->serial_number,
+            'description'   => $request->description,
+            'place_id'      => $request->place_id,
+            'status'        => $request->status,
+            'image'         => $imagePath,
         ]);
 
         AuditLog::create([
@@ -47,7 +54,7 @@ class ItemController extends Controller
             'new_values'     => $item->toArray(),
         ]);
 
-        return response()->json($item, 201);
+        return response()->json($item->load('place.cupboard'), 201);
     }
 
     public function show(Item $item)
@@ -61,12 +68,21 @@ class ItemController extends Controller
 
         $imagePath = $item->image;
         if ($request->hasFile('image')) {
+            if ($item->image) {
+                Storage::disk('public')->delete($item->image);
+            }
             $imagePath = $request->file('image')->store('items', 'public');
         }
 
         $item->update([
-            ...$request->except('image'),
-            'image' => $imagePath,
+            'name'          => $request->name,
+            'code'          => $request->code,
+            'quantity'      => $request->quantity,
+            'serial_number' => $request->serial_number,
+            'description'   => $request->description,
+            'place_id'      => $request->place_id,
+            'status'        => $request->status,
+            'image'         => $imagePath,
         ]);
 
         AuditLog::create([
@@ -78,7 +94,7 @@ class ItemController extends Controller
             'new_values'     => $item->toArray(),
         ]);
 
-        return response()->json($item);
+        return response()->json($item->load('place.cupboard'));
     }
 
     public function updateQuantity(Request $request, Item $item)
@@ -118,6 +134,9 @@ class ItemController extends Controller
 
     public function destroy(Item $item)
     {
+        if ($item->image) {
+            Storage::disk('public')->delete($item->image);
+        }
         $item->delete();
         return response()->json(['message' => 'Item deleted']);
     }

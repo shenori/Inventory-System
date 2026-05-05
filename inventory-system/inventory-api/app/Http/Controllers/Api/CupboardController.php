@@ -21,7 +21,7 @@ class CupboardController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        $cupboard = Cupboard::create($request->all());
+        $cupboard = Cupboard::create($request->only(['name', 'location', 'description']));
 
         AuditLog::create([
             'user_id'        => auth()->id(),
@@ -42,8 +42,14 @@ class CupboardController extends Controller
 
     public function update(Request $request, Cupboard $cupboard)
     {
+        $request->validate([
+            'name'        => 'sometimes|required|string',
+            'location'    => 'nullable|string',
+            'description' => 'nullable|string',
+        ]);
+
         $old = $cupboard->toArray();
-        $cupboard->update($request->all());
+        $cupboard->update($request->only(['name', 'location', 'description']));
 
         AuditLog::create([
             'user_id'        => auth()->id(),
@@ -59,7 +65,19 @@ class CupboardController extends Controller
 
     public function destroy(Cupboard $cupboard)
     {
+        $old = $cupboard->toArray();
+
         $cupboard->delete();
+
+        AuditLog::create([
+            'user_id'        => auth()->id(),
+            'action'         => 'cupboard.deleted',
+            'auditable_type' => Cupboard::class,
+            'auditable_id'   => $old['id'],
+            'old_values'     => $old,
+            'new_values'     => null,
+        ]);
+
         return response()->json(['message' => 'Cupboard deleted']);
     }
 }

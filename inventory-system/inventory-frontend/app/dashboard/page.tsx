@@ -13,13 +13,11 @@ export default function Dashboard() {
     useEffect(() => {
         if (authLoading) return;
         if (!user) { router.push('/login'); return; }
-        // Load stats silently in background — don't block page render
         fetchStats();
     }, [user, authLoading]);
 
     const fetchStats = async () => {
         try {
-            // Fire all requests simultaneously but don't block UI
             const [items, borrowings, cupboards, places] = await Promise.all([
                 api.get('/items'),
                 api.get('/borrowings'),
@@ -27,45 +25,42 @@ export default function Dashboard() {
                 api.get('/places'),
             ]);
             setStats({
-                items: items.data.length,
-                borrowings: borrowings.data.length,
-                cupboards: cupboards.data.length,
-                places: places.data.length,
+                items: Array.isArray(items.data) ? items.data.length : 0,
+                borrowings: Array.isArray(borrowings.data) ? borrowings.data.length : 0,
+                cupboards: Array.isArray(cupboards.data) ? cupboards.data.length : 0,
+                places: Array.isArray(places.data) ? places.data.length : 0,
             });
-        } catch (err) {
-            console.error(err);
+        } catch (err: any) {
+            console.error('fetchStats error:', err?.response?.status, err?.response?.data);
         }
     };
 
     const navItems = [
-        { label: 'Dashboard', href: '/dashboard', icon: '🏠' },
-        { label: 'Items', href: '/dashboard/items', icon: '📦' },
+        { label: 'Dashboard',  href: '/dashboard',            icon: '🏠' },
+        { label: 'Items',      href: '/dashboard/items',      icon: '📦' },
         { label: 'Borrowings', href: '/dashboard/borrowings', icon: '🤝' },
-        { label: 'Storage', href: '/dashboard/storage', icon: '🗄️' },
+        { label: 'Storage',    href: '/dashboard/storage',    icon: '🗄️' },
         { label: 'Audit Logs', href: '/dashboard/audit-logs', icon: '📋' },
     ];
 
     const statCards = [
-        { label: 'Total Items', value: stats.items, accent: '#6366f1', icon: '📦', href: '/dashboard/items' },
-        { label: 'Borrowings', value: stats.borrowings, accent: '#f59e0b', icon: '🤝', href: '/dashboard/borrowings' },
-        { label: 'Cupboards', value: stats.cupboards, accent: '#10b981', icon: '🗄️', href: '/dashboard/storage' },
-        { label: 'Places', value: stats.places, accent: '#8b5cf6', icon: '📍', href: '/dashboard/storage' },
+        { label: 'Total Items', value: stats.items,     accent: '#6366f1', icon: '📦', href: '/dashboard/items' },
+        { label: 'Borrowings',  value: stats.borrowings,accent: '#f59e0b', icon: '🤝', href: '/dashboard/borrowings' },
+        { label: 'Cupboards',   value: stats.cupboards, accent: '#10b981', icon: '🗄️', href: '/dashboard/storage' },
+        { label: 'Places',      value: stats.places,    accent: '#8b5cf6', icon: '📍', href: '/dashboard/storage' },
     ];
 
     const quickActions = [
-        { label: 'Add New Item', href: '/dashboard/items', accent: '#6366f1', icon: '📦' },
-        { label: 'Borrow Item', href: '/dashboard/borrowings', accent: '#f59e0b', icon: '🤝' },
-        { label: 'Manage Storage', href: '/dashboard/storage', accent: '#10b981', icon: '🗄️' },
+        { label: 'Add New Item',    href: '/dashboard/items',      accent: '#6366f1', icon: '📦' },
+        { label: 'Borrow Item',     href: '/dashboard/borrowings', accent: '#f59e0b', icon: '🤝' },
+        { label: 'Manage Storage',  href: '/dashboard/storage',    accent: '#10b981', icon: '🗄️' },
         { label: 'View Audit Logs', href: '/dashboard/audit-logs', accent: '#64748b', icon: '📋' },
     ];
-    if (user?.role === 'admin') quickActions.push({ label: 'Manage Users', href: '/dashboard/users', accent: '#8b5cf6', icon: '👥' });
-
-    // Show blank dark screen while auth loads — no spinner, no flash
-    if (authLoading) {
-        return <div style={{ minHeight: '100vh', background: '#0d0f1a' }} />;
+    if (user?.role === 'admin') {
+        quickActions.push({ label: 'Manage Users', href: '/dashboard/users', accent: '#8b5cf6', icon: '👥' });
     }
 
-    // If no user after auth check, show nothing (redirect will happen)
+    if (authLoading) return <div style={{ minHeight: '100vh', background: '#0d0f1a' }} />;
     if (!user) return null;
 
     return (
@@ -91,7 +86,6 @@ export default function Dashboard() {
                 }
                 .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 14px; color: #f1f5f9; line-height: 1.2; }
                 .logo-sub { font-size: 10px; color: #475569; }
-
                 .user-chip {
                     background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
                     border-radius: 12px; padding: 10px 12px; margin-bottom: 24px;
@@ -110,17 +104,14 @@ export default function Dashboard() {
                     border: 1px solid rgba(99,102,241,0.3); display: inline-block;
                     text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px;
                 }
-
                 .nav-section-label {
                     font-size: 9px; font-weight: 700; color: #334155;
-                    text-transform: uppercase; letter-spacing: 1px;
-                    margin: 0 0 6px 8px;
+                    text-transform: uppercase; letter-spacing: 1px; margin: 0 0 6px 8px;
                 }
                 .nav-link {
                     display: flex; align-items: center; gap: 9px;
                     padding: 9px 10px; border-radius: 10px; margin-bottom: 2px;
-                    text-decoration: none; transition: all 0.15s;
-                    border: 1px solid transparent;
+                    text-decoration: none; transition: all 0.15s; border: 1px solid transparent;
                 }
                 .nav-link:hover { background: rgba(255,255,255,0.05); }
                 .nav-link.active { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.2); }
@@ -132,7 +123,6 @@ export default function Dashboard() {
                 .nav-link.active .nav-label { color: #e2e8f0; font-weight: 600; }
                 .nav-link:hover .nav-label { color: #94a3b8; }
                 .nav-spacer { flex: 1; }
-
                 .logout-btn {
                     display: flex; align-items: center; gap: 9px; padding: 9px 10px;
                     border-radius: 10px; width: 100%;
@@ -220,7 +210,6 @@ export default function Dashboard() {
                     )}
 
                     <div className="nav-spacer" />
-
                     <button className="logout-btn" onClick={logout}>
                         <div className="logout-icon">🚪</div>
                         <span className="logout-label">Logout</span>
@@ -233,7 +222,6 @@ export default function Dashboard() {
                         <p className="page-sub">Welcome back, {user?.name}. Here's what's happening.</p>
                     </div>
 
-                    {/* Stats load in background — page shows immediately with 0s then updates */}
                     <div className="stats-grid">
                         {statCards.map(card => (
                             <Link key={card.label} href={card.href} className="stat-card" style={{ borderColor: `${card.accent}22` }}>
@@ -249,7 +237,7 @@ export default function Dashboard() {
                         <div className="panel-title">Quick Actions</div>
                         <div className="actions-grid">
                             {quickActions.map(btn => (
-                                <Link key={btn.href} href={btn.href} className="action-card">
+                                <Link key={btn.label} href={btn.href} className="action-card">
                                     <span style={{ fontSize: '16px', color: btn.accent }}>{btn.icon}</span>
                                     {btn.label}
                                 </Link>

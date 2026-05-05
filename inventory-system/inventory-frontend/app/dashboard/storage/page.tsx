@@ -5,19 +5,32 @@ import { useRouter } from 'next/navigation';
 import api from '../../../lib/axios';
 import Link from 'next/link';
 
+// ── Cache helpers ──
+const fromCache = (key) => {
+    if (typeof window === 'undefined') return [];
+    try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+};
+const toCache = (key, data) => {
+    if (typeof window === 'undefined') return;
+    try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
+};
+
 export default function StoragePage() {
     const { user, logout, loading: authLoading } = useAuth();
     const router = useRouter();
-    const [cupboards, setCupboards] = useState([]);
-    const [places, setPlaces] = useState([]);
+
+    // ── Load from cache instantly, update in background ──
+    const [cupboards, setCupboards] = useState(() => fromCache('cache_cupboards'));
+    const [places, setPlaces]       = useState(() => fromCache('cache_places'));
+
     const [activeTab, setActiveTab] = useState('cupboards');
     const [showModal, setShowModal] = useState(false);
     const [modalType, setModalType] = useState('cupboard');
-    const [editItem, setEditItem] = useState(null);
-    const [error, setError] = useState('');
-    const [search, setSearch] = useState('');
+    const [editItem, setEditItem]   = useState(null);
+    const [error, setError]         = useState('');
+    const [search, setSearch]       = useState('');
     const [cupboardForm, setCupboardForm] = useState({ name: '', location: '' });
-    const [placeForm, setPlaceForm] = useState({ name: '', cupboard_id: '' });
+    const [placeForm, setPlaceForm]       = useState({ name: '', cupboard_id: '' });
 
     useEffect(() => {
         if (authLoading) return;
@@ -30,8 +43,10 @@ export default function StoragePage() {
             const [c, p] = await Promise.all([api.get('/cupboards'), api.get('/places')]);
             setCupboards(c.data);
             setPlaces(p.data);
+            // ── Save to cache so next visit is instant ──
+            toCache('cache_cupboards', c.data);
+            toCache('cache_places', p.data);
         } catch (err) { console.error(err); }
-        // ✅ No loading state — removed entirely so table shows immediately
     };
 
     const openCupboardModal = (item = null) => {
@@ -56,7 +71,8 @@ export default function StoragePage() {
                 if (editItem) await api.put(`/places/${editItem.id}`, placeForm);
                 else await api.post('/places', placeForm);
             }
-            setShowModal(false); fetchAll();
+            setShowModal(false);
+            fetchAll(); // refresh + update cache
         } catch (err) { setError(err.response?.data?.message || 'Something went wrong'); }
     };
 
@@ -65,7 +81,7 @@ export default function StoragePage() {
         try {
             if (type === 'cupboard') await api.delete(`/cupboards/${id}`);
             else await api.delete(`/places/${id}`);
-            fetchAll();
+            fetchAll(); // refresh + update cache
         } catch { alert('Cannot delete — it may have items assigned to it.'); }
     };
 

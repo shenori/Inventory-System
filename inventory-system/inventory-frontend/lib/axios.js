@@ -1,14 +1,12 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api',
+    baseURL: 'http://127.0.0.1:8000/api',
     headers: {
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
     },
 });
 
-// ── Attach token before every request ──
 api.interceptors.request.use((config) => {
     if (typeof window !== 'undefined') {
         const token = localStorage.getItem('token');
@@ -16,10 +14,13 @@ api.interceptors.request.use((config) => {
             config.headers.Authorization = `Bearer ${token}`;
         }
     }
+    // Let browser set Content-Type for FormData automatically
+    if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+    }
     return config;
 });
 
-// ── On 401: clear storage and redirect to login ──
 api.interceptors.response.use(
     (response) => response,
     (error) => {

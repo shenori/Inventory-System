@@ -24,7 +24,7 @@ export function AuthProvider({ children }) {
 
                 // Token exists in localStorage — verify it's still valid with backend
                 try {
-                    const res = await api.get('/user');
+                    const res = await api.get('/me');
                     // Backend confirmed token is valid — use fresh user data
                     setUser(res.data);
                     localStorage.setItem('user', JSON.stringify(res.data));
