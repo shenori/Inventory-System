@@ -9,9 +9,11 @@ class CorsMiddleware
 {
     public function handle(Request $request, Closure $next)
     {
+        $origin = $request->headers->get('Origin');
+
         if ($request->isMethod('OPTIONS')) {
             return response()->json('OK', 200)
-                ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
+                ->header('Access-Control-Allow-Origin', $origin ?: '*')
                 ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
                 ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With')
                 ->header('Access-Control-Allow-Credentials', 'false');
@@ -19,7 +21,7 @@ class CorsMiddleware
 
         $response = $next($request);
 
-        $response->headers->set('Access-Control-Allow-Origin', 'http://localhost:3000');
+        $response->headers->set('Access-Control-Allow-Origin', $origin ?: '*');
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
         $response->headers->set('Access-Control-Allow-Credentials', 'false');
