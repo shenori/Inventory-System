@@ -9,6 +9,11 @@ use App\Http\Controllers\Api\BorrowingController;
 use App\Http\Controllers\Api\AuditLogController;
 use Illuminate\Support\Facades\Route;
 
+// Handle OPTIONS preflight requests
+Route::options('{any}', function() {
+    return response()->json('OK', 200);
+})->where('any', '.*');
+
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
 
