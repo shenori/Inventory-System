@@ -25,7 +25,7 @@ export default function ItemsPage() {
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
 
-    const baseUrl = 'http://127.0.0.1:8000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://127.0.0.1:8000';
 
     useEffect(() => {
         if (authLoading) return;
