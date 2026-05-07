@@ -8,7 +8,16 @@ import Link from 'next/link';
 export default function Dashboard() {
     const { user, logout, loading: authLoading } = useAuth();
     const router = useRouter();
-    const [stats, setStats] = useState({ items: 0, borrowings: 0, cupboards: 0, places: 0 });
+
+    const [stats, setStats] = useState(() => {
+        if (typeof window !== 'undefined') {
+            try { return JSON.parse(localStorage.getItem('cache_dashboard_stats') || 'null') || { items: 0, borrowings: 0, cupboards: 0, places: 0 }; }
+            catch { return { items: 0, borrowings: 0, cupboards: 0, places: 0 }; }
+        }
+        return { items: 0, borrowings: 0, cupboards: 0, places: 0 };
+    });
+    const [backendOnline, setBackendOnline] = useState(true);
+    const [retrying, setRetrying] = useState(false);
 
     useEffect(() => {
         if (authLoading) return;
@@ -18,20 +27,30 @@ export default function Dashboard() {
 
     const fetchStats = async () => {
         try {
+            setRetrying(true);
             const [items, borrowings, cupboards, places] = await Promise.all([
                 api.get('/items'),
                 api.get('/borrowings'),
                 api.get('/cupboards'),
                 api.get('/places'),
             ]);
-            setStats({
+            const newStats = {
                 items: Array.isArray(items.data) ? items.data.length : 0,
                 borrowings: Array.isArray(borrowings.data) ? borrowings.data.length : 0,
                 cupboards: Array.isArray(cupboards.data) ? cupboards.data.length : 0,
                 places: Array.isArray(places.data) ? places.data.length : 0,
-            });
+            };
+            setStats(newStats);
+            setBackendOnline(true);
+            localStorage.setItem('cache_dashboard_stats', JSON.stringify(newStats));
         } catch (err: any) {
-            console.error('fetchStats error:', err?.response?.status, err?.response?.data);
+            setBackendOnline(false);
+            // Gracefully handle both Axios response errors and network/timeout errors
+            const status = err?.response?.status ?? 'network/timeout';
+            const data = err?.response?.data ?? err?.message ?? 'no response';
+            console.error('fetchStats error:', status, data);
+        } finally {
+            setRetrying(false);
         }
     };
 
@@ -44,10 +63,10 @@ export default function Dashboard() {
     ];
 
     const statCards = [
-        { label: 'Total Items', value: stats.items,     accent: '#6366f1', icon: '📦', href: '/dashboard/items' },
-        { label: 'Borrowings',  value: stats.borrowings,accent: '#f59e0b', icon: '🤝', href: '/dashboard/borrowings' },
-        { label: 'Cupboards',   value: stats.cupboards, accent: '#10b981', icon: '🗄️', href: '/dashboard/storage' },
-        { label: 'Places',      value: stats.places,    accent: '#8b5cf6', icon: '📍', href: '/dashboard/storage' },
+        { label: 'Total Items', value: stats.items,      accent: '#6366f1', icon: '📦', href: '/dashboard/items' },
+        { label: 'Borrowings',  value: stats.borrowings, accent: '#f59e0b', icon: '🤝', href: '/dashboard/borrowings' },
+        { label: 'Cupboards',   value: stats.cupboards,  accent: '#10b981', icon: '🗄️', href: '/dashboard/storage' },
+        { label: 'Places',      value: stats.places,     accent: '#8b5cf6', icon: '📍', href: '/dashboard/storage' },
     ];
 
     const quickActions = [
@@ -70,105 +89,53 @@ export default function Dashboard() {
                 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
                 body { font-family: 'DM Sans', sans-serif; }
                 .page-root { display: flex; min-height: 100vh; background: #0d0f1a; }
-
-                .sidebar {
-                    width: 210px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 100;
-                    background: linear-gradient(180deg, #0d0f1a 0%, #111827 100%);
-                    border-right: 1px solid rgba(255,255,255,0.06);
-                    padding: 20px 12px; display: flex; flex-direction: column;
-                }
+                .sidebar { width: 210px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 100; background: linear-gradient(180deg, #0d0f1a 0%, #111827 100%); border-right: 1px solid rgba(255,255,255,0.06); padding: 20px 12px; display: flex; flex-direction: column; }
                 .sidebar-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding: 0 6px; }
-                .logo-icon {
-                    width: 38px; height: 38px; border-radius: 12px;
-                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-                    display: flex; align-items: center; justify-content: center;
-                    font-size: 18px; box-shadow: 0 4px 16px rgba(99,102,241,0.4); flex-shrink: 0;
-                }
+                .logo-icon { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 16px rgba(99,102,241,0.4); flex-shrink: 0; }
                 .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 14px; color: #f1f5f9; line-height: 1.2; }
                 .logo-sub { font-size: 10px; color: #475569; }
-                .user-chip {
-                    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
-                    border-radius: 12px; padding: 10px 12px; margin-bottom: 24px;
-                    display: flex; align-items: center; gap: 10px;
-                }
-                .user-avatar {
-                    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
-                    background: linear-gradient(135deg, #f093fb, #f5576c);
-                    display: flex; align-items: center; justify-content: center;
-                    color: white; font-weight: 800; font-size: 14px;
-                }
+                .user-chip { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 10px 12px; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+                .user-avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, #f093fb, #f5576c); display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 14px; }
                 .user-name { font-size: 13px; font-weight: 600; color: #e2e8f0; }
-                .user-role-badge {
-                    font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
-                    background: rgba(99,102,241,0.2); color: #a5b4fc;
-                    border: 1px solid rgba(99,102,241,0.3); display: inline-block;
-                    text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px;
-                }
-                .nav-section-label {
-                    font-size: 9px; font-weight: 700; color: #334155;
-                    text-transform: uppercase; letter-spacing: 1px; margin: 0 0 6px 8px;
-                }
-                .nav-link {
-                    display: flex; align-items: center; gap: 9px;
-                    padding: 9px 10px; border-radius: 10px; margin-bottom: 2px;
-                    text-decoration: none; transition: all 0.15s; border: 1px solid transparent;
-                }
+                .user-role-badge { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+                .nav-section-label { font-size: 9px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 6px 8px; }
+                .nav-link { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 10px; margin-bottom: 2px; text-decoration: none; transition: all 0.15s; border: 1px solid transparent; }
                 .nav-link:hover { background: rgba(255,255,255,0.05); }
                 .nav-link.active { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.2); }
-                .nav-icon-wrap {
-                    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
-                    display: flex; align-items: center; justify-content: center; font-size: 15px;
-                }
+                .nav-icon-wrap { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; }
                 .nav-label { font-size: 13px; font-weight: 500; color: #64748b; }
                 .nav-link.active .nav-label { color: #e2e8f0; font-weight: 600; }
                 .nav-link:hover .nav-label { color: #94a3b8; }
                 .nav-spacer { flex: 1; }
-                .logout-btn {
-                    display: flex; align-items: center; gap: 9px; padding: 9px 10px;
-                    border-radius: 10px; width: 100%;
-                    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15);
-                    cursor: pointer; transition: all 0.2s;
-                }
+                .logout-btn { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 10px; width: 100%; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15); cursor: pointer; transition: all 0.2s; }
                 .logout-btn:hover { background: rgba(239,68,68,0.15); }
                 .logout-icon { width: 30px; height: 30px; border-radius: 8px; background: rgba(239,68,68,0.12); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
                 .logout-label { color: #fca5a5; font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; }
-
                 .main-content { margin-left: 210px; flex: 1; padding: 36px 40px; }
                 .page-header { margin-bottom: 32px; }
                 .page-title { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: #f1f5f9; margin: 0 0 4px; }
                 .page-sub { color: #475569; font-size: 14px; margin: 0; }
-
+                .offline-banner { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); border-radius: 10px; padding: 10px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #fbbf24; }
                 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
-                .stat-card {
-                    border-radius: 16px; padding: 22px;
-                    border: 1px solid rgba(255,255,255,0.06);
-                    background: rgba(255,255,255,0.02);
-                    position: relative; overflow: hidden; transition: transform 0.2s;
-                    text-decoration: none; display: block; cursor: pointer;
-                }
+                .stat-card { border-radius: 16px; padding: 22px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); position: relative; overflow: hidden; transition: transform 0.2s; text-decoration: none; display: block; cursor: pointer; }
                 .stat-card:hover { transform: translateY(-2px); }
                 .stat-glow { position: absolute; top: -20px; right: -20px; width: 80px; height: 80px; border-radius: 50%; filter: blur(30px); opacity: 0.28; }
                 .stat-icon { font-size: 20px; margin-bottom: 14px; }
                 .stat-value { font-family: 'Syne', sans-serif; font-size: 38px; font-weight: 800; line-height: 1; margin-bottom: 6px; }
                 .stat-label { font-size: 12px; color: #64748b; font-weight: 500; }
-
                 .panel { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 22px; }
                 .panel-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: #f1f5f9; margin-bottom: 14px; }
                 .actions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-                .action-card {
-                    display: flex; align-items: center; gap: 10px;
-                    padding: 14px 16px; border-radius: 10px;
-                    text-decoration: none; font-size: 13px; font-weight: 500;
-                    border: 1px solid rgba(255,255,255,0.06);
-                    background: rgba(255,255,255,0.02);
-                    color: #94a3b8; transition: all 0.2s;
-                }
+                .action-card { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 500; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); color: #94a3b8; transition: all 0.2s; }
                 .action-card:hover { background: rgba(255,255,255,0.05); color: #e2e8f0; transform: translateY(-1px); }
-
+                .retry-btn { margin-left: auto; background: rgba(251,191,36,0.2); border: 1px solid rgba(251,191,36,0.3); color: #fbbf24; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12px; font-weight: 700; opacity: 1; transition: opacity 0.2s; }
+                .retry-btn:disabled { opacity: 0.5; cursor: not-allowed; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
                 .fade-in { animation: fadeIn 0.3s ease forwards; }
                 @keyframes countUp { from { opacity: 0.3; } to { opacity: 1; } }
                 .count-anim { animation: countUp 0.5s ease forwards; }
+                @keyframes spin { to { transform: rotate(360deg); } }
+                .spinning { display: inline-block; animation: spin 1s linear infinite; }
             `}</style>
 
             <div className="page-root">
@@ -180,7 +147,6 @@ export default function Dashboard() {
                             <div className="logo-sub">Management System</div>
                         </div>
                     </div>
-
                     <div className="user-chip">
                         <div className="user-avatar">{user?.name?.charAt(0)?.toUpperCase()}</div>
                         <div>
@@ -188,7 +154,6 @@ export default function Dashboard() {
                             <span className="user-role-badge">{user?.role}</span>
                         </div>
                     </div>
-
                     <div className="nav-section-label">Main Menu</div>
                     {navItems.map(item => (
                         <Link key={item.href} href={item.href} className={`nav-link${item.href === '/dashboard' ? ' active' : ''}`}>
@@ -198,7 +163,6 @@ export default function Dashboard() {
                             <span className="nav-label">{item.label}</span>
                         </Link>
                     ))}
-
                     {user?.role === 'admin' && (
                         <>
                             <div className="nav-section-label" style={{ marginTop: '14px' }}>Admin</div>
@@ -208,7 +172,6 @@ export default function Dashboard() {
                             </Link>
                         </>
                     )}
-
                     <div className="nav-spacer" />
                     <button className="logout-btn" onClick={logout}>
                         <div className="logout-icon">🚪</div>
@@ -221,6 +184,19 @@ export default function Dashboard() {
                         <h1 className="page-title">Dashboard</h1>
                         <p className="page-sub">Welcome back, {user?.name}. Here's what's happening.</p>
                     </div>
+
+                    {!backendOnline && (
+                        <div className="offline-banner">
+                            ⚠️ Backend is waking up — showing cached data. Refresh in a moment.
+                            <button
+                                className="retry-btn"
+                                onClick={fetchStats}
+                                disabled={retrying}
+                            >
+                                {retrying ? <span className="spinning">🔄</span> : '🔄'} {retrying ? 'Retrying…' : 'Retry'}
+                            </button>
+                        </div>
+                    )}
 
                     <div className="stats-grid">
                         {statCards.map(card => (
