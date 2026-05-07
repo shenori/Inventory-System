@@ -12,7 +12,6 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
-    // ✅ If already logged in, redirect to dashboard
     useEffect(() => {
         if (!authLoading && user) {
             router.push('/dashboard');
@@ -27,11 +26,7 @@ export default function LoginPage() {
             await login(email, password);
         } catch (err: any) {
             const msg = err?.response?.data?.message;
-            if (msg) {
-                setError(msg);
-            } else {
-                setError('Invalid email or password');
-            }
+            setError(msg || 'Invalid email or password');
         } finally {
             setLoading(false);
         }
@@ -47,31 +42,18 @@ export default function LoginPage() {
                 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
                 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
                 body { font-family: 'DM Sans', sans-serif; }
-
-                .login-root {
-                    min-height: 100vh;
-                    background: #060810;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    position: relative;
-                    overflow: hidden;
-                }
+                .login-root { min-height: 100vh; background: #060810; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
                 .bg-orb { position: absolute; border-radius: 50%; pointer-events: none; }
                 .orb1 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%); top: -120px; right: -120px; }
                 .orb2 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%); bottom: -80px; left: -80px; }
                 .bg-grid { position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 28px 28px; pointer-events: none; }
-
-                .login-card { position: relative; z-index: 1; width: 100%; max-width: 410px; padding: 48px 40px; }
-
+                .login-card { position: relative; z-index: 1; width: 100%; max-width: 410px; padding: 48px 40px; animation: fadeIn 0.4s ease forwards; }
                 .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; }
                 .brand-mark { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; color: #fff; font-family: 'Syne', sans-serif; box-shadow: 0 0 20px rgba(99,102,241,0.4); }
                 .brand-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 17px; color: #f1f5f9; letter-spacing: -0.3px; }
-
                 .login-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 2px; color: #6366f1; text-transform: uppercase; margin-bottom: 8px; }
                 .login-title { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: #f8fafc; letter-spacing: -1px; line-height: 1.2; margin-bottom: 6px; }
                 .login-sub { font-size: 13px; color: #475569; margin-bottom: 32px; }
-
                 .field { margin-bottom: 16px; }
                 .field-label { display: block; font-size: 12px; font-weight: 500; color: #64748b; margin-bottom: 7px; letter-spacing: 0.3px; text-transform: uppercase; }
                 .field-wrap { position: relative; }
@@ -81,32 +63,21 @@ export default function LoginPage() {
                 .field-input::placeholder { color: #1e293b; }
                 .eye-btn { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 16px; opacity: 0.4; transition: opacity 0.2s; padding: 0; }
                 .eye-btn:hover { opacity: 0.8; }
-
-                .forgot { text-align: right; margin-bottom: 24px; margin-top: -4px; }
-                .forgot a { font-size: 12px; color: #6366f1; text-decoration: none; transition: opacity 0.2s; }
-                .forgot a:hover { opacity: 0.75; }
-
                 .error-box { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #f87171; font-size: 13px; padding: 12px 16px; border-radius: 10px; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
-
-                .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; letter-spacing: 0.3px; cursor: pointer; transition: opacity 0.2s, transform 0.1s; box-shadow: 0 4px 24px rgba(99,102,241,0.35), 0 0 0 1px rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; gap: 8px; }
+                .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 10px; color: #fff; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; letter-spacing: 0.3px; cursor: pointer; transition: opacity 0.2s, transform 0.1s; box-shadow: 0 4px 24px rgba(99,102,241,0.35), 0 0 0 1px rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px; }
                 .submit-btn:hover { opacity: 0.9; }
                 .submit-btn:active { transform: scale(0.99); }
                 .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
                 @keyframes spin { to { transform: rotate(360deg); } }
                 .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
-
-                .divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; }
+                .divider { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
                 .divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
                 .divider-text { font-size: 12px; color: #334155; }
-
                 .trust-badges { display: flex; justify-content: center; gap: 20px; }
                 .trust-item { display: flex; align-items: center; gap: 6px; }
                 .trust-icon { font-size: 13px; }
                 .trust-label { font-size: 11px; color: #334155; }
-
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .login-card { animation: fadeIn 0.4s ease forwards; }
             `}</style>
 
             <div className="login-root">
@@ -148,7 +119,7 @@ export default function LoginPage() {
                             </div>
                         </div>
 
-                        <div className="field">
+                        <div className="field" style={{ marginBottom: '24px' }}>
                             <label className="field-label">Password</label>
                             <div className="field-wrap">
                                 <span className="field-icon">🔒</span>
@@ -169,10 +140,6 @@ export default function LoginPage() {
                                     {showPassword ? '🙈' : '👁️'}
                                 </button>
                             </div>
-                        </div>
-
-                        <div className="forgot">
-                            <a href="#">Forgot password?</a>
                         </div>
 
                         <button type="submit" disabled={loading} className="submit-btn">

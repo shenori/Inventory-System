@@ -61,11 +61,14 @@ class BorrowingController extends Controller
         }
 
         DB::transaction(function () use ($borrowing) {
-            $item = Item::lockForUpdate()->findOrFail($borrowing->item_id);
+            // Use find() instead of findOrFail() — item may have been deleted
+            $item = Item::lockForUpdate()->find($borrowing->item_id);
 
-            $item->quantity += $borrowing->quantity_borrowed;
-            $item->status = $item->quantity > 0 ? 'in-store' : $item->status;
-            $item->save();
+            if ($item) {
+                $item->quantity += $borrowing->quantity_borrowed;
+                $item->status = $item->quantity > 0 ? 'in-store' : $item->status;
+                $item->save();
+            }
 
             $borrowing->update([
                 'status'      => 'returned',
@@ -76,9 +79,9 @@ class BorrowingController extends Controller
                 'user_id'        => auth()->id(),
                 'action'         => 'item.returned',
                 'auditable_type' => Item::class,
-                'auditable_id'   => $item->id,
+                'auditable_id'   => $borrowing->item_id,
                 'old_values'     => ['status' => 'borrowed'],
-                'new_values'     => ['quantity' => $item->quantity, 'status' => $item->status],
+                'new_values'     => ['status' => 'returned'],
             ]);
         });
 

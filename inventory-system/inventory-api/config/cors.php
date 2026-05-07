@@ -5,7 +5,7 @@ return [
     'allowed_methods' => ['*'],
     'allowed_origins' => [
         'http://localhost:3000',
-        'https://your-frontend.vercel.app', // ← add your actual frontend URL
+        'https://your-frontend.vercel.app', 
     ],
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],
