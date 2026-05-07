@@ -6,57 +6,44 @@ import { useRouter } from 'next/navigation';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true); // CRITICAL: start as TRUE
     const router = useRouter();
-
-    // ── Load cached user INSTANTLY — no waiting for API ──
-    const [user, setUser] = useState(() => {
-        if (typeof window !== 'undefined') {
-            try {
-                const savedUser = localStorage.getItem('user');
-                return savedUser ? JSON.parse(savedUser) : null;
-            } catch { return null; }
-        }
-        return null;
-    });
-
-    // ── loading is false immediately if we have cached user ──
-    const [loading, setLoading] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return !localStorage.getItem('token'); // only loading if no token
-        }
-        return true;
-    });
 
     useEffect(() => {
         const checkAuth = async () => {
-            const token = localStorage.getItem('token');
-            const savedUser = localStorage.getItem('user');
-
-            if (!token || !savedUser) {
-                // No token — not logged in
-                setUser(null);
-                setLoading(false);
-                return;
-            }
-
-            // ── We already set user from cache above ──
-            // Now verify in background silently
-            setLoading(false); // Don't block the UI
-
             try {
-                const res = await api.get('/me');
-                // Update with fresh data from server
-                setUser(res.data);
-                localStorage.setItem('user', JSON.stringify(res.data));
-            } catch (err) {
-                if (err.response?.status === 401) {
-                    // Token truly expired — log out
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    setUser(null);
-                    router.push('/login');
+                const token = localStorage.getItem('token');
+                const savedUser = localStorage.getItem('user');
+
+                if (!token || !savedUser) {
+                    // No token at all — not logged in
+                    setLoading(false);
+                    return;
                 }
-                // Network error — keep using cached user (offline support)
+
+                // Token exists in localStorage — verify it's still valid with backend
+                try {
+                    const res = await api.get('/me');
+                    // Backend confirmed token is valid — use fresh user data
+                    setUser(res.data);
+                    localStorage.setItem('user', JSON.stringify(res.data));
+                } catch (err) {
+                    if (err.response?.status === 401) {
+                        // Token expired or invalid — clear everything
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        setUser(null);
+                    } else {
+                        // Network error — fall back to cached user so app still works offline
+                        setUser(JSON.parse(savedUser));
+                    }
+                }
+            } catch (e) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+            } finally {
+                setLoading(false); // Only set false AFTER check is done
             }
         };
 
