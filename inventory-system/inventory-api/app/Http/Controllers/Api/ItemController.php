@@ -41,7 +41,7 @@ class ItemController extends Controller
             'serial_number' => $request->serial_number,
             'description'   => $request->description,
             'place_id'      => $request->place_id,
-            'status'        => $request->status,
+            'status'        => $request->status ?? 'in-store',
             'image'         => $imagePath,
         ]);
 
@@ -66,6 +66,17 @@ class ItemController extends Controller
     {
         $old = $item->toArray();
 
+        $request->validate([
+            'name'          => 'sometimes|required|string',
+            'code'          => 'sometimes|required|string|unique:items,code,' . $item->id,
+            'quantity'      => 'sometimes|required|integer|min:0',
+            'serial_number' => 'nullable|string',
+            'image'         => 'nullable|image|max:2048',
+            'description'   => 'nullable|string',
+            'place_id'      => 'sometimes|required|exists:places,id',
+            'status'        => 'sometimes|in:in-store,borrowed,damaged,missing',
+        ]);
+
         $imagePath = $item->image;
         if ($request->hasFile('image')) {
             if ($item->image) {
@@ -75,23 +86,42 @@ class ItemController extends Controller
         }
 
         $item->update([
-            'name'          => $request->name,
-            'code'          => $request->code,
-            'quantity'      => $request->quantity,
-            'serial_number' => $request->serial_number,
-            'description'   => $request->description,
-            'place_id'      => $request->place_id,
-            'status'        => $request->status,
+            'name'          => $request->input('name', $item->name),
+            'code'          => $request->input('code', $item->code),
+            'quantity'      => $request->input('quantity', $item->quantity),
+            'serial_number' => $request->input('serial_number', $item->serial_number),
+            'description'   => $request->input('description', $item->description),
+            'place_id'      => $request->input('place_id', $item->place_id),
+            'status'        => $request->input('status', $item->status),
             'image'         => $imagePath,
         ]);
 
+        // Build a focused diff of what actually changed
+        $new = $item->fresh()->toArray();
+        $changedOld = [];
+        $changedNew = [];
+        foreach ($new as $key => $value) {
+            if (isset($old[$key]) && $old[$key] !== $value) {
+                $changedOld[$key] = $old[$key];
+                $changedNew[$key] = $value;
+            }
+        }
+
+        // Detect status change for a richer action label
+        $action = 'item.updated';
+        if (isset($changedNew['status'])) {
+            $action = 'item.status.changed';
+        } elseif (isset($changedNew['quantity'])) {
+            $action = 'item.quantity.updated';
+        }
+
         AuditLog::create([
             'user_id'        => auth()->id(),
-            'action'         => 'item.updated',
+            'action'         => $action,
             'auditable_type' => Item::class,
             'auditable_id'   => $item->id,
-            'old_values'     => $old,
-            'new_values'     => $item->toArray(),
+            'old_values'     => $changedOld ?: $old,
+            'new_values'     => $changedNew ?: $new,
         ]);
 
         return response()->json($item->load('place.cupboard'));
@@ -104,40 +134,64 @@ class ItemController extends Controller
             'amount' => 'required|integer|min:1',
         ]);
 
-        DB::transaction(function () use ($request, $item) {
-            $item = Item::lockForUpdate()->find($item->id);
-            $oldQty = $item->quantity;
+        $result = null;
+
+        DB::transaction(function () use ($request, $item, &$result) {
+            $lockedItem = Item::lockForUpdate()->find($item->id);
+            $oldQty = $lockedItem->quantity;
 
             if ($request->type === 'decrement') {
-                if ($item->quantity < $request->amount) {
+                if ($lockedItem->quantity < $request->amount) {
                     throw new \Exception('Insufficient quantity');
                 }
-                $item->quantity -= $request->amount;
+                $lockedItem->quantity -= $request->amount;
             } else {
-                $item->quantity += $request->amount;
+                $lockedItem->quantity += $request->amount;
             }
 
-            $item->save();
+            $lockedItem->save();
+
+            $change = $lockedItem->quantity - $oldQty; // negative for decrement
 
             AuditLog::create([
                 'user_id'        => auth()->id(),
                 'action'         => 'item.quantity.updated',
                 'auditable_type' => Item::class,
-                'auditable_id'   => $item->id,
-                'old_values'     => ['quantity' => $oldQty],
-                'new_values'     => ['quantity' => $item->quantity],
+                'auditable_id'   => $lockedItem->id,
+                'old_values'     => [
+                    'quantity' => $oldQty,
+                ],
+                'new_values'     => [
+                    'quantity' => $lockedItem->quantity,
+                    'change'   => $change,    // e.g. -5 or +3
+                    'type'     => $request->type,
+                ],
             ]);
+
+            $result = $lockedItem->fresh();
         });
 
-        return response()->json($item->fresh());
+        return response()->json($result);
     }
 
     public function destroy(Item $item)
     {
+        // Log before deleting so we keep a record of what existed
+        AuditLog::create([
+            'user_id'        => auth()->id(),
+            'action'         => 'item.deleted',
+            'auditable_type' => Item::class,
+            'auditable_id'   => $item->id,
+            'old_values'     => $item->toArray(),
+            'new_values'     => null,
+        ]);
+
         if ($item->image) {
             Storage::disk('public')->delete($item->image);
         }
+
         $item->delete();
+
         return response()->json(['message' => 'Item deleted']);
     }
 }
