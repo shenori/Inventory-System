@@ -35,15 +35,15 @@ class ItemController extends Controller
         }
 
         $item = Item::create([
-            'name'             => $request->name,
-            'code'             => $request->code,
-            'quantity'         => $request->quantity,
-            'borrowed_quantity' => 0,           // always starts at 0
-            'serial_number'    => $request->serial_number,
-            'description'      => $request->description,
-            'place_id'         => $request->place_id,
-            'status'           => $request->status ?? 'in-store',
-            'image'            => $imagePath,
+            'name'              => $request->name,
+            'code'              => $request->code,
+            'quantity'          => $request->quantity,
+            'borrowed_quantity' => 0,
+            'serial_number'     => $request->serial_number,
+            'description'       => $request->description,
+            'place_id'          => $request->place_id,
+            'status'            => $request->status ?? 'in-store',
+            'image'             => $imagePath,
         ]);
 
         AuditLog::create([
@@ -52,7 +52,15 @@ class ItemController extends Controller
             'auditable_type' => Item::class,
             'auditable_id'   => $item->id,
             'old_values'     => null,
-            'new_values'     => $item->toArray(),
+            'new_values'     => [
+                'name'      => $item->name,
+                'code'      => $item->code,
+                'total'     => $item->quantity,
+                'available' => $item->available_quantity,
+                'borrowed'  => 0,
+                'status'    => $item->status,
+                'place_id'  => $item->place_id,
+            ],
         ]);
 
         return response()->json($item->load('place.cupboard'), 201);
@@ -78,8 +86,6 @@ class ItemController extends Controller
             'status'        => 'sometimes|in:in-store,borrowed,damaged,missing',
         ]);
 
-        // When manually adjusting total quantity, ensure it never goes below
-        // what is already borrowed
         if ($request->has('quantity')) {
             if ($request->quantity < $item->borrowed_quantity) {
                 return response()->json([
@@ -107,30 +113,45 @@ class ItemController extends Controller
             'image'         => $imagePath,
         ]);
 
-        $new = $item->fresh()->toArray();
-        $changedOld = [];
-        $changedNew = [];
-        foreach ($new as $key => $value) {
-            if (isset($old[$key]) && $old[$key] !== $value) {
-                $changedOld[$key] = $old[$key];
-                $changedNew[$key] = $value;
-            }
-        }
+        $new = $item->fresh();
 
+        // Detect what kind of change this was
         $action = 'item.updated';
-        if (isset($changedNew['status'])) {
+        $changedFields = [];
+
+        if ($old['status'] !== $new->status) {
             $action = 'item.status.changed';
-        } elseif (isset($changedNew['quantity'])) {
-            $action = 'item.quantity.updated';
+            $changedFields[] = 'status';
         }
+        if ($old['quantity'] !== $new->quantity) {
+            $action = 'item.quantity.updated';
+            $changedFields[] = 'quantity';
+        }
+        if ($old['name'] !== $new->name)        $changedFields[] = 'name';
+        if ($old['place_id'] !== $new->place_id) $changedFields[] = 'place';
 
         AuditLog::create([
             'user_id'        => auth()->id(),
             'action'         => $action,
             'auditable_type' => Item::class,
             'auditable_id'   => $item->id,
-            'old_values'     => $changedOld ?: $old,
-            'new_values'     => $changedNew ?: $new,
+            'old_values'     => [
+                'name'      => $old['name'],
+                'status'    => $old['status'],
+                'total'     => $old['quantity'],
+                'available' => $old['quantity'] - ($old['borrowed_quantity'] ?? 0),
+                'borrowed'  => $old['borrowed_quantity'] ?? 0,
+                'place_id'  => $old['place_id'],
+            ],
+            'new_values'     => [
+                'name'           => $new->name,
+                'status'         => $new->status,
+                'total'          => $new->quantity,
+                'available'      => $new->available_quantity,
+                'borrowed'       => $new->borrowed_quantity,
+                'place_id'       => $new->place_id,
+                'changed_fields' => $changedFields,
+            ],
         ]);
 
         return response()->json($item->load('place.cupboard'));
@@ -146,12 +167,12 @@ class ItemController extends Controller
         $result = null;
 
         DB::transaction(function () use ($request, $item, &$result) {
-            $lockedItem = Item::lockForUpdate()->find($item->id);
-            $oldQty       = $lockedItem->quantity;
+            $lockedItem   = Item::lockForUpdate()->find($item->id);
+            $oldTotal     = $lockedItem->quantity;
             $oldAvailable = $lockedItem->available_quantity;
+            $oldBorrowed  = $lockedItem->borrowed_quantity;
 
             if ($request->type === 'decrement') {
-                // Cannot reduce total below what is already borrowed
                 if ($lockedItem->available_quantity < $request->amount) {
                     throw new \Exception(
                         'Only ' . $lockedItem->available_quantity . ' available to remove. ' .
@@ -165,7 +186,8 @@ class ItemController extends Controller
 
             $lockedItem->save();
 
-            $change = $lockedItem->quantity - $oldQty;
+            $change       = $lockedItem->quantity - $oldTotal;
+            $newAvailable = $lockedItem->available_quantity;
 
             AuditLog::create([
                 'user_id'        => auth()->id(),
@@ -173,14 +195,19 @@ class ItemController extends Controller
                 'auditable_type' => Item::class,
                 'auditable_id'   => $lockedItem->id,
                 'old_values'     => [
-                    'quantity'           => $oldQty,
-                    'available_quantity' => $oldAvailable,
+                    'total'     => $oldTotal,
+                    'available' => $oldAvailable,
+                    'borrowed'  => $oldBorrowed,
                 ],
                 'new_values'     => [
-                    'quantity'           => $lockedItem->quantity,
-                    'available_quantity' => $lockedItem->available_quantity,
-                    'change'             => $change,
-                    'type'               => $request->type,
+                    'total'       => $lockedItem->quantity,
+                    'available'   => $newAvailable,
+                    'borrowed'    => $oldBorrowed,        // borrowed didn't change
+                    'change'      => $change,             // e.g. -5 or +10
+                    'type'        => $request->type,
+                    'stock_level' => $newAvailable === 0
+                                        ? 'out_of_stock'
+                                        : ($newAvailable <= ($lockedItem->quantity * 0.2) ? 'low_stock' : 'ok'),
                 ],
             ]);
 
@@ -192,7 +219,6 @@ class ItemController extends Controller
 
     public function destroy(Item $item)
     {
-        // Block deletion if any items are still borrowed
         if ($item->borrowed_quantity > 0) {
             return response()->json([
                 'message' => 'Cannot delete item. ' . $item->borrowed_quantity . ' unit(s) are still borrowed.',
@@ -204,7 +230,14 @@ class ItemController extends Controller
             'action'         => 'item.deleted',
             'auditable_type' => Item::class,
             'auditable_id'   => $item->id,
-            'old_values'     => $item->toArray(),
+            'old_values'     => [
+                'name'      => $item->name,
+                'code'      => $item->code,
+                'total'     => $item->quantity,
+                'available' => $item->available_quantity,
+                'borrowed'  => $item->borrowed_quantity,
+                'status'    => $item->status,
+            ],
             'new_values'     => null,
         ]);
 

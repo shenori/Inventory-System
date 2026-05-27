@@ -30,7 +30,6 @@ class BorrowingController extends Controller
         $borrowing = DB::transaction(function () use ($request) {
             $item = Item::lockForUpdate()->findOrFail($request->item_id);
 
-            // Check against available_quantity (total - already borrowed)
             if ($item->available_quantity < $request->quantity_borrowed) {
                 throw new \Exception(
                     'Only ' . $item->available_quantity . ' available. ' .
@@ -41,10 +40,8 @@ class BorrowingController extends Controller
             $oldBorrowed  = $item->borrowed_quantity;
             $oldAvailable = $item->available_quantity;
 
-            // Increase borrowed_quantity; total quantity stays the same
             $item->borrowed_quantity += $request->quantity_borrowed;
 
-            // Set status to borrowed only if nothing is available anymore
             if ($item->available_quantity === 0) {
                 $item->status = 'borrowed';
             }
@@ -53,21 +50,30 @@ class BorrowingController extends Controller
 
             $borrowing = Borrowing::create($request->all());
 
+            // How much is still left after this borrow
+            $remaining = $item->available_quantity;
+            $totalQty  = $item->quantity;
+
             AuditLog::create([
                 'user_id'        => auth()->id(),
                 'action'         => 'item.borrowed',
                 'auditable_type' => Item::class,
                 'auditable_id'   => $item->id,
                 'old_values'     => [
-                    'borrowed_quantity'  => $oldBorrowed,
-                    'available_quantity' => $oldAvailable,
-                    'status'             => 'in-store',
+                    'available' => $oldAvailable,
+                    'borrowed'  => $oldBorrowed,
+                    'total'     => $totalQty,
                 ],
                 'new_values'     => [
-                    'borrowed_quantity'  => $item->borrowed_quantity,
-                    'available_quantity' => $item->available_quantity,
-                    'quantity_borrowed'  => $request->quantity_borrowed,
-                    'status'             => $item->status,
+                    'available'         => $remaining,
+                    'borrowed'          => $item->borrowed_quantity,
+                    'total'             => $totalQty,
+                    'taken_this_time'   => $request->quantity_borrowed,
+                    'borrower'          => $request->borrower_name,
+                    'expected_return'   => $request->expected_return_date,
+                    'stock_level'       => $remaining === 0
+                                            ? 'out_of_stock'
+                                            : ($remaining <= ($totalQty * 0.2) ? 'low_stock' : 'ok'),
                 ],
             ]);
 
@@ -90,15 +96,23 @@ class BorrowingController extends Controller
                 $oldBorrowed  = $item->borrowed_quantity;
                 $oldAvailable = $item->available_quantity;
 
-                // Decrease borrowed_quantity; total quantity stays the same
                 $item->borrowed_quantity = max(0, $item->borrowed_quantity - $borrowing->quantity_borrowed);
 
-                // Restore status to in-store if anything is now available
                 if ($item->available_quantity > 0) {
                     $item->status = 'in-store';
                 }
 
                 $item->save();
+
+                // How many days was it out
+                $borrowedAt  = \Carbon\Carbon::parse($borrowing->borrow_date);
+                $returnedAt  = now();
+                $daysOut     = $borrowedAt->diffInDays($returnedAt);
+
+                // Was it returned late?
+                $expectedReturn = \Carbon\Carbon::parse($borrowing->expected_return_date);
+                $isLate         = $returnedAt->gt($expectedReturn);
+                $daysLate       = $isLate ? $expectedReturn->diffInDays($returnedAt) : 0;
 
                 AuditLog::create([
                     'user_id'        => auth()->id(),
@@ -106,15 +120,22 @@ class BorrowingController extends Controller
                     'auditable_type' => Item::class,
                     'auditable_id'   => $item->id,
                     'old_values'     => [
-                        'borrowed_quantity'  => $oldBorrowed,
-                        'available_quantity' => $oldAvailable,
-                        'status'             => 'borrowed',
+                        'available' => $oldAvailable,
+                        'borrowed'  => $oldBorrowed,
+                        'total'     => $item->quantity,
                     ],
                     'new_values'     => [
-                        'borrowed_quantity'  => $item->borrowed_quantity,
-                        'available_quantity' => $item->available_quantity,
-                        'quantity_borrowed'  => $borrowing->quantity_borrowed,
-                        'status'             => $item->status,
+                        'available'       => $item->available_quantity,
+                        'borrowed'        => $item->borrowed_quantity,
+                        'total'           => $item->quantity,
+                        'returned_qty'    => $borrowing->quantity_borrowed,
+                        'borrower'        => $borrowing->borrower_name,
+                        'days_out'        => $daysOut,
+                        'return_status'   => $isLate ? 'late' : 'on_time',
+                        'days_late'       => $daysLate,
+                        'stock_level'     => $item->available_quantity === 0
+                                                ? 'out_of_stock'
+                                                : ($item->available_quantity <= ($item->quantity * 0.2) ? 'low_stock' : 'ok'),
                     ],
                 ]);
             }

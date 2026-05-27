@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api',
-    timeout: 30000, // 30 seconds
+    timeout: 30000,
     headers: {
         'Accept': 'application/json',
     },
@@ -15,6 +15,7 @@ api.interceptors.request.use((config) => {
             config.headers.Authorization = `Bearer ${token}`;
         }
     }
+    // Let browser set Content-Type for FormData (includes boundary)
     if (config.data instanceof FormData) {
         delete config.headers['Content-Type'];
     }
@@ -24,23 +25,31 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        // Handle timeout — retry once automatically
-        if (error.code === 'ECONNABORTED' && !error.config._retry) {
+        const status = error.response?.status;
+
+        // Only retry on genuine timeout (no response at all), never on 4xx/5xx
+        if (
+            error.code === 'ECONNABORTED' &&
+            !error.config._retry &&
+            !status
+        ) {
             error.config._retry = true;
             try {
-                return await axios(error.config);
+                return await api(error.config); // use api not axios to keep auth header
             } catch (retryError) {
                 return Promise.reject(retryError);
             }
         }
 
-        if (error.response?.status === 401) {
+        // Auto logout on 401
+        if (status === 401) {
             if (typeof window !== 'undefined') {
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 window.location.href = '/login';
             }
         }
+
         return Promise.reject(error);
     }
 );

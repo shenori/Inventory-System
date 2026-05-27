@@ -24,6 +24,7 @@ export default function ItemsPage() {
     const [form, setForm] = useState({ name: '', code: '', quantity: 0, serial_number: '', description: '', place_id: '', status: 'in-store' });
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
+    const [submitting, setSubmitting] = useState(false); // FIX 2: track loading state
 
     const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://127.0.0.1:8000';
 
@@ -63,11 +64,22 @@ export default function ItemsPage() {
 
     const handleSubmit = async () => {
         setError('');
+
+        // FIX 1: frontend validation before hitting the API
+        if (!form.name.trim()) { setError('Item name is required.'); return; }
+        if (!form.code.trim()) { setError('Unique code is required.'); return; }
+        if (form.quantity < 0)  { setError('Quantity cannot be negative.'); return; }
+        if (!form.place_id)     { setError('Please select a storage place.'); return; }
+
+        // FIX 2: prevent double-submit
+        if (submitting) return;
+        setSubmitting(true);
+
         try {
             const fd = new FormData();
             Object.keys(form).forEach(k => {
                 const val = (form as any)[k];
-                if (val !== null && val !== undefined) fd.append(k, val);
+                if (val !== null && val !== undefined && val !== '') fd.append(k, val);
             });
             if (imageFile) fd.append('image', imageFile);
             if (editItem) {
@@ -76,15 +88,28 @@ export default function ItemsPage() {
             } else {
                 await api.post('/items', fd);
             }
-            setShowModal(false); fetchItems();
+            setShowModal(false);
+            fetchItems();
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Something went wrong');
+            // FIX 3: show Laravel validation errors field by field if present
+            const data = err.response?.data;
+            if (data?.errors) {
+                const messages = Object.values(data.errors).flat().join(' ');
+                setError(messages);
+            } else {
+                setError(data?.message || 'Something went wrong');
+            }
+        } finally {
+            setSubmitting(false); // always re-enable button
         }
     };
 
     const handleDelete = async (id: number) => {
         if (!confirm('Delete this item?')) return;
-        try { await api.delete(`/items/${id}`); fetchItems(); } catch {}
+        try { await api.delete(`/items/${id}`); fetchItems(); }
+        catch (err: any) {
+            alert(err.response?.data?.message || 'Could not delete item.');
+        }
     };
 
     const handleQty = async (item: any, type: string) => {
@@ -207,14 +232,18 @@ export default function ItemsPage() {
                 .field-input-m:focus { border-color: #6366f1; background: rgba(99,102,241,0.07); }
                 .field-input-m::placeholder { color: #334155; }
                 .field-input-m option { background: #1e2937; }
+                .field-input-m.field-error { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.05); }
                 .error-box-m { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #f87171; font-size: 13px; padding: 11px 14px; border-radius: 9px; margin-bottom: 14px; }
                 .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
                 .submit-btn-m { flex: 1; padding: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; box-shadow: 0 6px 20px rgba(99,102,241,0.35); transition: all 0.2s; }
-                .submit-btn-m:hover { transform: translateY(-1px); }
+                .submit-btn-m:hover:not(:disabled) { transform: translateY(-1px); }
+                .submit-btn-m:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
                 .cancel-btn-m { flex: 1; padding: 12px; background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
                 .cancel-btn-m:hover { background: rgba(255,255,255,0.1); }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
                 .fade-in { animation: fadeIn 0.3s ease forwards; }
+                @keyframes spin { to { transform: rotate(360deg); } }
+                .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
             `}</style>
 
             <div className="page-root">
@@ -370,7 +399,7 @@ export default function ItemsPage() {
                     <div className="modal">
                         <div className="modal-header">
                             <h3 className="modal-title">{editItem ? '✏️ Edit Item' : '➕ New Item'}</h3>
-                            <button className="close-btn" onClick={() => setShowModal(false)}>✕</button>
+                            <button className="close-btn" onClick={() => !submitting && setShowModal(false)}>✕</button>
                         </div>
                         {error && <div className="error-box-m">⚠️ {error}</div>}
                         <div className="form-fields">
@@ -438,13 +467,19 @@ export default function ItemsPage() {
                                     onChange={e => setForm({ ...form, description: e.target.value })}
                                 />
                             </div>
+
                             <div>
                                 <label className="field-label-m">Storage Place *</label>
-                                <select value={form.place_id} className="field-input-m" onChange={e => setForm({ ...form, place_id: e.target.value })}>
+                                <select
+                                    value={form.place_id}
+                                    className={`field-input-m${!form.place_id && error ? ' field-error' : ''}`}
+                                    onChange={e => setForm({ ...form, place_id: e.target.value })}
+                                >
                                     <option value="">Select a place...</option>
                                     {places.map(p => <option key={p.id} value={p.id}>{p.name} ({p.cupboard?.name})</option>)}
                                 </select>
                             </div>
+
                             <div>
                                 <label className="field-label-m">Status</label>
                                 <select value={form.status} className="field-input-m" onChange={e => setForm({ ...form, status: e.target.value })}>
@@ -456,8 +491,23 @@ export default function ItemsPage() {
                             </div>
                         </div>
                         <div className="modal-actions">
-                            <button className="submit-btn-m" onClick={handleSubmit}>{editItem ? '✏️ Update' : '➕ Create'}</button>
-                            <button className="cancel-btn-m" onClick={() => setShowModal(false)}>Cancel</button>
+                            <button
+                                className="submit-btn-m"
+                                onClick={handleSubmit}
+                                disabled={submitting}
+                            >
+                                {submitting
+                                    ? <><span className="spinner" />Saving...</>
+                                    : (editItem ? '✏️ Update' : '➕ Create')
+                                }
+                            </button>
+                            <button
+                                className="cancel-btn-m"
+                                onClick={() => !submitting && setShowModal(false)}
+                                disabled={submitting}
+                            >
+                                Cancel
+                            </button>
                         </div>
                     </div>
                 </div>
