@@ -35,14 +35,15 @@ class ItemController extends Controller
         }
 
         $item = Item::create([
-            'name'          => $request->name,
-            'code'          => $request->code,
-            'quantity'      => $request->quantity,
-            'serial_number' => $request->serial_number,
-            'description'   => $request->description,
-            'place_id'      => $request->place_id,
-            'status'        => $request->status ?? 'in-store',
-            'image'         => $imagePath,
+            'name'             => $request->name,
+            'code'             => $request->code,
+            'quantity'         => $request->quantity,
+            'borrowed_quantity' => 0,           // always starts at 0
+            'serial_number'    => $request->serial_number,
+            'description'      => $request->description,
+            'place_id'         => $request->place_id,
+            'status'           => $request->status ?? 'in-store',
+            'image'            => $imagePath,
         ]);
 
         AuditLog::create([
@@ -77,6 +78,16 @@ class ItemController extends Controller
             'status'        => 'sometimes|in:in-store,borrowed,damaged,missing',
         ]);
 
+        // When manually adjusting total quantity, ensure it never goes below
+        // what is already borrowed
+        if ($request->has('quantity')) {
+            if ($request->quantity < $item->borrowed_quantity) {
+                return response()->json([
+                    'message' => 'Total quantity cannot be less than borrowed quantity (' . $item->borrowed_quantity . ')',
+                ], 422);
+            }
+        }
+
         $imagePath = $item->image;
         if ($request->hasFile('image')) {
             if ($item->image) {
@@ -96,7 +107,6 @@ class ItemController extends Controller
             'image'         => $imagePath,
         ]);
 
-        // Build a focused diff of what actually changed
         $new = $item->fresh()->toArray();
         $changedOld = [];
         $changedNew = [];
@@ -107,7 +117,6 @@ class ItemController extends Controller
             }
         }
 
-        // Detect status change for a richer action label
         $action = 'item.updated';
         if (isset($changedNew['status'])) {
             $action = 'item.status.changed';
@@ -138,11 +147,16 @@ class ItemController extends Controller
 
         DB::transaction(function () use ($request, $item, &$result) {
             $lockedItem = Item::lockForUpdate()->find($item->id);
-            $oldQty = $lockedItem->quantity;
+            $oldQty       = $lockedItem->quantity;
+            $oldAvailable = $lockedItem->available_quantity;
 
             if ($request->type === 'decrement') {
-                if ($lockedItem->quantity < $request->amount) {
-                    throw new \Exception('Insufficient quantity');
+                // Cannot reduce total below what is already borrowed
+                if ($lockedItem->available_quantity < $request->amount) {
+                    throw new \Exception(
+                        'Only ' . $lockedItem->available_quantity . ' available to remove. ' .
+                        $lockedItem->borrowed_quantity . ' currently borrowed.'
+                    );
                 }
                 $lockedItem->quantity -= $request->amount;
             } else {
@@ -151,7 +165,7 @@ class ItemController extends Controller
 
             $lockedItem->save();
 
-            $change = $lockedItem->quantity - $oldQty; // negative for decrement
+            $change = $lockedItem->quantity - $oldQty;
 
             AuditLog::create([
                 'user_id'        => auth()->id(),
@@ -159,12 +173,14 @@ class ItemController extends Controller
                 'auditable_type' => Item::class,
                 'auditable_id'   => $lockedItem->id,
                 'old_values'     => [
-                    'quantity' => $oldQty,
+                    'quantity'           => $oldQty,
+                    'available_quantity' => $oldAvailable,
                 ],
                 'new_values'     => [
-                    'quantity' => $lockedItem->quantity,
-                    'change'   => $change,    // e.g. -5 or +3
-                    'type'     => $request->type,
+                    'quantity'           => $lockedItem->quantity,
+                    'available_quantity' => $lockedItem->available_quantity,
+                    'change'             => $change,
+                    'type'               => $request->type,
                 ],
             ]);
 
@@ -176,7 +192,13 @@ class ItemController extends Controller
 
     public function destroy(Item $item)
     {
-        // Log before deleting so we keep a record of what existed
+        // Block deletion if any items are still borrowed
+        if ($item->borrowed_quantity > 0) {
+            return response()->json([
+                'message' => 'Cannot delete item. ' . $item->borrowed_quantity . ' unit(s) are still borrowed.',
+            ], 422);
+        }
+
         AuditLog::create([
             'user_id'        => auth()->id(),
             'action'         => 'item.deleted',

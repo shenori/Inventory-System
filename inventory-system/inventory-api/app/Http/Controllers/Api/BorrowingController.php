@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -29,12 +30,25 @@ class BorrowingController extends Controller
         $borrowing = DB::transaction(function () use ($request) {
             $item = Item::lockForUpdate()->findOrFail($request->item_id);
 
-            if ($item->quantity < $request->quantity_borrowed) {
-                throw new \Exception('Not enough stock available');
+            // Check against available_quantity (total - already borrowed)
+            if ($item->available_quantity < $request->quantity_borrowed) {
+                throw new \Exception(
+                    'Only ' . $item->available_quantity . ' available. ' .
+                    $item->borrowed_quantity . ' currently borrowed.'
+                );
             }
 
-            $item->quantity -= $request->quantity_borrowed;
-            $item->status = 'borrowed';
+            $oldBorrowed  = $item->borrowed_quantity;
+            $oldAvailable = $item->available_quantity;
+
+            // Increase borrowed_quantity; total quantity stays the same
+            $item->borrowed_quantity += $request->quantity_borrowed;
+
+            // Set status to borrowed only if nothing is available anymore
+            if ($item->available_quantity === 0) {
+                $item->status = 'borrowed';
+            }
+
             $item->save();
 
             $borrowing = Borrowing::create($request->all());
@@ -44,8 +58,17 @@ class BorrowingController extends Controller
                 'action'         => 'item.borrowed',
                 'auditable_type' => Item::class,
                 'auditable_id'   => $item->id,
-                'old_values'     => ['quantity' => $item->quantity + $request->quantity_borrowed, 'status' => 'in-store'],
-                'new_values'     => ['quantity' => $item->quantity, 'status' => 'borrowed'],
+                'old_values'     => [
+                    'borrowed_quantity'  => $oldBorrowed,
+                    'available_quantity' => $oldAvailable,
+                    'status'             => 'in-store',
+                ],
+                'new_values'     => [
+                    'borrowed_quantity'  => $item->borrowed_quantity,
+                    'available_quantity' => $item->available_quantity,
+                    'quantity_borrowed'  => $request->quantity_borrowed,
+                    'status'             => $item->status,
+                ],
             ]);
 
             return $borrowing;
@@ -61,27 +84,44 @@ class BorrowingController extends Controller
         }
 
         DB::transaction(function () use ($borrowing) {
-            // Use find() instead of findOrFail() — item may have been deleted
             $item = Item::lockForUpdate()->find($borrowing->item_id);
 
             if ($item) {
-                $item->quantity += $borrowing->quantity_borrowed;
-                $item->status = $item->quantity > 0 ? 'in-store' : $item->status;
+                $oldBorrowed  = $item->borrowed_quantity;
+                $oldAvailable = $item->available_quantity;
+
+                // Decrease borrowed_quantity; total quantity stays the same
+                $item->borrowed_quantity = max(0, $item->borrowed_quantity - $borrowing->quantity_borrowed);
+
+                // Restore status to in-store if anything is now available
+                if ($item->available_quantity > 0) {
+                    $item->status = 'in-store';
+                }
+
                 $item->save();
+
+                AuditLog::create([
+                    'user_id'        => auth()->id(),
+                    'action'         => 'item.returned',
+                    'auditable_type' => Item::class,
+                    'auditable_id'   => $item->id,
+                    'old_values'     => [
+                        'borrowed_quantity'  => $oldBorrowed,
+                        'available_quantity' => $oldAvailable,
+                        'status'             => 'borrowed',
+                    ],
+                    'new_values'     => [
+                        'borrowed_quantity'  => $item->borrowed_quantity,
+                        'available_quantity' => $item->available_quantity,
+                        'quantity_borrowed'  => $borrowing->quantity_borrowed,
+                        'status'             => $item->status,
+                    ],
+                ]);
             }
 
             $borrowing->update([
                 'status'      => 'returned',
                 'returned_at' => now(),
-            ]);
-
-            AuditLog::create([
-                'user_id'        => auth()->id(),
-                'action'         => 'item.returned',
-                'auditable_type' => Item::class,
-                'auditable_id'   => $borrowing->item_id,
-                'old_values'     => ['status' => 'borrowed'],
-                'new_values'     => ['status' => 'returned'],
             ]);
         });
 
